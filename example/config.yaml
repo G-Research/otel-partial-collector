@@ -1,0 +1,28 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+
+processors:
+  batch:
+
+connectors:
+  partialconnector:
+    postgres: "postgres://postgres:test@127.0.0.1:40444/partialconnector?sslmode=disable"
+    gc_older_than: "24h"
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [partialconnector]
+    traces:
+      receivers: [partialconnector]
+      exporters: [debug]
