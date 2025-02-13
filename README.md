@@ -25,7 +25,8 @@ The tool used can be installed from [here](https://github.com/golang-migrate/mig
 3. Generate binary:
 
 ```bash
-./bin/ocb
+mkdir cmd || true
+./bin/ocb --config example/builder-config.yaml
 ```
 
 4. Run the app
