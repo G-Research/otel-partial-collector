@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/G-Research/partialconnector/config"
-	"github.com/G-Research/partialconnector/datasource"
+	"github.com/G-Research/otel-partial-connector/otelpartialconnector/config"
+	"github.com/G-Research/otel-partial-connector/otelpartialconnector/datasource"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/connector"
 	"go.opentelemetry.io/collector/consumer"

@@ -1,4 +1,4 @@
-module github.com/G-Research/partialconnector
+module github.com/G-Research/otel-partial-connector/otelpartialconnector
 
 go 1.23.2
 

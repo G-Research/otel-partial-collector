@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/G-Research/otel-partial-connector/otelpartialconnector/datasource"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/G-Research/partialconnector/datasource"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
