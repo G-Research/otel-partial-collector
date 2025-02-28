@@ -27,11 +27,11 @@ The assumption is that you are in the repository root.
 #### Steps
 1. Run postgers
 ```bash
-docker run --name ltt -e POSTGRES_DB="partialconnector" -e POSTGRES_PASSWORD=test -d -p 40444:5432 --rm postgres:latest
+docker run --name otel-partial-connector-db -e POSTGRES_DB="otelpartialconnector" -e POSTGRES_PASSWORD=test -d -p 40444:5432 --rm postgres:latest
 ```
 2. Apply migration:
 ```bash
-migrate -source file:///$(pwd)/migrations -database "postgres://postgres:test@localhost:40444/partialconnector?sslmode=disable" up
+migrate -source file:///$(pwd)/migrations -database "postgres://postgres:test@localhost:40444/otelpartialconnector?sslmode=disable" up
 ```
 The tool used can be installed from [here](https://github.com/golang-migrate/migrate/tree/master/cmd/migrate)
 
@@ -45,5 +45,5 @@ mkdir cmd || true
 4. Run the app
 
 ```bash
-./cmd/partialconnector --config example/config.yaml
+./cmd/otelpartialconnector --config example/config.yaml
 ```
