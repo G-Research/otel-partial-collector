@@ -1,4 +1,4 @@
-package partialconnector
+package otelpartialconnector
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var cfgType = component.MustNewType("partialconnector")
+var cfgType = component.MustNewType("otelpartialconnector")
 
 type logsToTracesConnector struct {
 	tracesConsumer consumer.Traces

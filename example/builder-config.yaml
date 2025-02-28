@@ -1,6 +1,6 @@
 dist:
   module: github.com/G-Research/otel-partial-connector/cmd
-  name: partialconnector
+  name: otelpartialconnector
   description: Connector for partial log traces
   output_path: ./cmd
   version: 0.1.0

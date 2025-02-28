@@ -13,8 +13,8 @@ processors:
   batch:
 
 connectors:
-  partialconnector:
-    postgres: "postgres://postgres:test@127.0.0.1:40444/partialconnector?sslmode=disable"
+  otelpartialconnector:
+    postgres: "postgres://postgres:test@127.0.0.1:40444/otelpartialconnector?sslmode=disable"
     gc_older_than: "24h"
 
 service:
@@ -22,7 +22,7 @@ service:
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [partialconnector]
+      exporters: [otelpartialconnector]
     traces:
-      receivers: [partialconnector]
+      receivers: [otelpartialconnector]
       exporters: [debug]
