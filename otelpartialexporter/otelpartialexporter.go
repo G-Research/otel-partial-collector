@@ -27,7 +27,7 @@ type Config struct {
 	Postgres string `mapstructure:"postgres"`
 }
 
-func Default() component.Config {
+func defaultConfig() component.Config {
 	return &Config{}
 }
 
@@ -129,7 +129,10 @@ func newPartialExporter(ctx context.Context, settings exporter.Settings, baseCfg
 func NewFactory() exporter.Factory {
 	return exporter.NewFactory(
 		typeStr,
-		func() component.Config { return &Config{} },
-		exporter.WithLogs(newPartialExporter, component.StabilityLevelAlpha),
+		defaultConfig,
+		exporter.WithLogs(
+			newPartialExporter,
+			component.StabilityLevelAlpha,
+		),
 	)
 }
