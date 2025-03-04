@@ -11,6 +11,7 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/connector"
 	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
@@ -162,6 +163,7 @@ func (c *logsToTracesConnector) gc(ctx context.Context) error {
 	var errs []error
 	for _, trace := range traces {
 		span := trace.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
+		span.SetEndTimestamp(pcommon.NewTimestampFromTime(time.Now()))
 		attrs := span.Attributes()
 		attrs.PutBool("connector.gc", true)
 
