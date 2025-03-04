@@ -20,6 +20,7 @@ var typeStr = component.MustNewType("otelpartialexporter")
 var (
 	logsJSONMarshaler      plog.JSONMarshaler
 	tracesProtoUnmarshaler ptrace.ProtoUnmarshaler
+	tracesProtoMarshaler   ptrace.ProtoMarshaler
 )
 
 type Config struct {
@@ -47,24 +48,7 @@ type otelPartialExporter struct {
 	logger *zap.Logger
 
 	cancelFunc context.CancelFunc
-}
-
-func (e *otelPartialExporter) Start(ctx context.Context, host component.Host) error {
-	e.host = host
-	ctx, cancel := context.WithCancel(context.Background())
-	e.cancelFunc = cancel
-	go e.loop(ctx)
-	return nil
-}
-
-func (e *otelPartialExporter) loop(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-	}
+	component.StartFunc
 }
 
 func (e *otelPartialExporter) Shutdown(ctx context.Context) error {
@@ -104,11 +88,11 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 
 				switch val {
 				case "heartbeat":
-					if err := e.db.PutTraces(ctx, traces); err != nil {
+					if err := e.putTraces(ctx, traces); err != nil {
 						return fmt.Errorf("failed to put races: %v", err)
 					}
 				case "stop":
-					if err := e.db.RemoveTraces(ctx, traces); err != nil {
+					if err := e.removeTraces(ctx, traces); err != nil {
 						return fmt.Errorf("failed to delete traces: %v", err)
 					}
 				default:

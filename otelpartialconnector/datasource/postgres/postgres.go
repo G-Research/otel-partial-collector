@@ -20,15 +20,6 @@ var (
 	tracesProtoMarshaler   ptrace.ProtoMarshaler
 )
 
-type traceKey struct {
-	TraceID string
-	SpanID  string
-}
-
-func (id *traceKey) Key() string {
-	return fmt.Sprintf("trace:%s:span:%s", id.TraceID, id.SpanID)
-}
-
 type DB struct {
 	pool *pgxpool.Pool
 
