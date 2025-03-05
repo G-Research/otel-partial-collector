@@ -54,13 +54,35 @@ type otelPartialReceiver struct {
 	cancelFunc context.CancelFunc
 }
 
-func (r *otelPartialReceiver) Start(ctx context.Context, host component.Host) error {
-	ctx, cancel := context.WithCancel(ctx)
+func newPartialReceiver(ctx context.Context, params receiver.Settings, baseCfg component.Config, consumer consumer.Traces) (receiver.Traces, error) {
+	cfg := baseCfg.(*Config)
+	db, err := postgres.NewDB(ctx, cfg.Postgres)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new db connection: %v", err)
+	}
+
+	d, err := time.ParseDuration(cfg.Interval)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse duration interval")
+	}
+
+	r := &otelPartialReceiver{
+		db:       db,
+		logger:   params.Logger,
+		interval: d,
+	}
+
+	return r, nil
+}
+
+func (r *otelPartialReceiver) Start(rootCtx context.Context, host component.Host) error {
+	ctx, cancel := context.WithCancel(context.Background())
 	r.cancelFunc = cancel
 	r.host = host
 
 	go r.loop(ctx)
-	return nil
+
+	return rootCtx.Err()
 }
 
 func (r *otelPartialReceiver) Shutdown(ctx context.Context) error {
@@ -76,12 +98,15 @@ func (r *otelPartialReceiver) loop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-time.After(30 * time.Second):
+			if err := r.gc(ctx); err != nil {
+				r.logger.Error("encountered errors while running gc", zap.Error(err))
+			}
 		}
 	}
 }
 
 func (c *otelPartialReceiver) gc(ctx context.Context) error {
-	targetTimestamp := time.Now().Add(-30 * time.Minute) // todo: configurable
+	targetTimestamp := time.Now().Add(-c.interval) // todo: configurable
 	return c.db.Transact(
 		ctx,
 		pgx.TxOptions{
@@ -120,21 +145,6 @@ func (c *otelPartialReceiver) gc(ctx context.Context) error {
 			return errors.Join(errs...)
 		},
 	)
-}
-
-func newPartialReceiver(ctx context.Context, params receiver.Settings, baseCfg component.Config, consumer consumer.Traces) (receiver.Traces, error) {
-	cfg := baseCfg.(*Config)
-	db, err := postgres.NewDB(ctx, cfg.Postgres)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new db connection: %v", err)
-	}
-
-	r := &otelPartialReceiver{
-		db:     db,
-		logger: params.Logger,
-	}
-
-	return r, nil
 }
 
 func NewFactory() receiver.Factory {
