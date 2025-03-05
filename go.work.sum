@@ -27,6 +27,7 @@ github.com/mitchellh/reflectwalk v1.0.2 h1:G2LzWKi524PWgd3mLHV8Y5k7s6XUvT0Gef6zx
 github.com/mitchellh/reflectwalk v1.0.2/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
 github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10/go.mod h1:t/avpk3KcrXxUnYOhZhMXJlSEyie6gQbtLq5NM3loB8=
 github.com/rogpeppe/go-internal v1.10.0/go.mod h1:UQnix2H7Ngw/k4C5ijL5+65zddjncjaFoBhdsK/akog=
+github.com/rogpeppe/go-internal v1.12.0/go.mod h1:E+RYuTGaKKdloAfM02xzb0FW3Paa99yedzYV+kq4uf4=
 go.opentelemetry.io/collector/component/componenttest v0.121.0/go.mod h1:H7bEXDPMYNeWcHal0xyKlVfRPByVxale7hCJ+Myjq3Q=
 go.opentelemetry.io/collector/config/configretry v1.27.0 h1:mM0X/7eiWRVmYTZJ5QTtly10uJWHnctIFuYST6tc/zU=
 go.opentelemetry.io/collector/config/configretry v1.27.0/go.mod h1:8gzFQ0qzKLYvzP2sNPwsB9gwzKSEls649yANmt/d6yE=
@@ -44,7 +45,6 @@ go.opentelemetry.io/collector/extension/xextension v0.121.0/go.mod h1:EiGx9nRD/7
 go.opentelemetry.io/collector/featuregate v1.27.0 h1:4LLrccoMz/gJT5uym8ojBlMzY5tr4RzUUXzwlBuiRz0=
 go.opentelemetry.io/collector/featuregate v1.27.0/go.mod h1:Y/KsHbvREENKvvN9RlpiWk/IGBK+CATBYzIIpU7nccc=
 go.opentelemetry.io/collector/pdata/testdata v0.121.0/go.mod h1:UhiSwmVpBbuKlPdmhBytiVTHipSz/JO6c4mbD4kWOPg=
-go.opentelemetry.io/collector/receiver v0.121.0/go.mod h1:CqvQRwGGOqq6PRI6qmkKzF7AYWwRZTpCX6w7U3wIAmQ=
 go.opentelemetry.io/collector/receiver/receivertest v0.121.0/go.mod h1:H7N4CLG4J8Do3NWeo9gj7VmJCtDstDeeCffPBgHu1WQ=
 go.opentelemetry.io/collector/receiver/xreceiver v0.121.0/go.mod h1:ZsI1dzGq9J8y0f8h8MYYnoyC8SRJ5u1OqVRX2EwdZwo=
 go.opentelemetry.io/contrib/detectors/gcp v1.32.0/go.mod h1:TVqo0Sda4Cv8gCIixd7LuLwW4EylumVWfhjZJjDD4DU=

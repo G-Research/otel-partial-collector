@@ -18,7 +18,7 @@ SET default_table_access_method = heap;
 CREATE TABLE public.partial_traces (
     trace_id text NOT NULL,
     span_id text NOT NULL,
-    value bytea NOT NULL,
+    trace bytea NOT NULL,
     "timestamp" timestamp with time zone DEFAULT now() NOT NULL
 );
 

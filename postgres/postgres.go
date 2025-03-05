@@ -127,3 +127,57 @@ func (db *DB) QueryRow(ctx context.Context, sql string, arguments ...any) pgx.Ro
 	}
 	return db.pool.QueryRow(ctx, sql, arguments...)
 }
+
+func (db *DB) PutTrace(ctx context.Context, traceID, spanID string, trace []byte) error {
+	q := `
+INSERT INTO partial_traces
+(trace_id, span_id, trace, timestamp)
+VALUES
+($1, $2, NOW())
+ON CONFLICT (trace_id, span_id) DO UPDATE
+SET trace = $2, timestamp = NOW()
+`
+
+	if _, err := db.Exec(ctx, q, traceID, spanID, trace); err != nil {
+		return fmt.Errorf("failed to insert partial span: %w", err)
+	}
+
+	return nil
+}
+
+func (db *DB) RemoveTrace(ctx context.Context, traceID, spanID string) error {
+	q := `
+DELETE FROM partial_traces
+WHERE trace_id = $1 AND span_id = $2
+	`
+
+	if _, err := db.Exec(ctx, q, traceID, spanID); err != nil {
+		return fmt.Errorf("failed to delete partial span: %w", err)
+	}
+
+	return nil
+}
+
+func (db *DB) GetTracesOlderThan(ctx context.Context, timestamp time.Time) ([][]byte, error) {
+	q := `
+SELECT trace FROM partial_traces
+WHERE timestamp < $1
+	`
+
+	rows, err := db.Query(ctx, q, timestamp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query traces")
+	}
+	defer rows.Close()
+
+	var traces [][]byte
+	for rows.Next() {
+		var bytes []byte
+		if err := rows.Scan(&bytes); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %v", err)
+		}
+		traces = append(traces, bytes)
+	}
+
+	return traces, nil
+}

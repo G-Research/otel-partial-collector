@@ -2,6 +2,7 @@ package otelpartialexporter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/G-Research/otel-partial-connector/postgres"
@@ -65,6 +66,7 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 	}
 	e.logger.Debug("Consuming logs", zap.String("log", string(out)))
 
+	var errs []error
 	resourceLogs := logs.ResourceLogs()
 	for i := range resourceLogs.Len() {
 		resourceLog := resourceLogs.At(i)
@@ -88,13 +90,33 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 
 				switch val {
 				case "heartbeat":
-					if err := e.putTraces(ctx, traces); err != nil {
-						return fmt.Errorf("failed to put races: %v", err)
+					for _, t := range flattenTraces(traces) {
+						b, err := tracesProtoMarshaler.MarshalTraces(t)
+						if err != nil {
+							errs = append(errs, fmt.Errorf("failed to marshal trace %v: %w", t, err))
+							continue
+						}
+
+						span := t.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
+						if err := e.db.PutTrace(
+							ctx,
+							span.TraceID().String(),
+							span.SpanID().String(),
+							b,
+						); err != nil {
+							errs = append(errs, fmt.Errorf("failed to put trace: %w", err))
+							continue
+						}
 					}
 				case "stop":
-					if err := e.removeTraces(ctx, traces); err != nil {
-						return fmt.Errorf("failed to delete traces: %v", err)
+					for _, t := range flattenTraces(traces) {
+						span := t.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
+						if err := e.db.RemoveTrace(ctx, span.TraceID().String(), span.SpanID().String()); err != nil {
+							errs = append(errs, fmt.Errorf("failed to remove trace: %w", err))
+							continue
+						}
 					}
+
 				default:
 					e.logger.Error("Unknown attribute value", zap.String("partial.event", val))
 				}
@@ -102,7 +124,7 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func newPartialExporter(ctx context.Context, settings exporter.Settings, baseCfg component.Config) (exporter.Logs, error) {
@@ -135,4 +157,46 @@ func NewFactory() exporter.Factory {
 			component.StabilityLevelAlpha,
 		),
 	)
+}
+
+func flattenTraces(traces ptrace.Traces) []ptrace.Traces {
+	spanCount := traces.SpanCount()
+	if spanCount == 1 {
+		return []ptrace.Traces{traces}
+	}
+
+	newTraces := make([]ptrace.Traces, 0, spanCount)
+	resourceSpans := traces.ResourceSpans()
+	for i := range resourceSpans.Len() {
+		resourceSpan := resourceSpans.At(i)
+		resource := resourceSpan.Resource()
+		scopeSpans := resourceSpan.ScopeSpans()
+		for j := range scopeSpans.Len() {
+			scopeSpan := scopeSpans.At(j)
+			scope := scopeSpan.Scope()
+			spans := scopeSpan.Spans()
+			for k := range spans.Len() {
+				span := spans.At(k)
+
+				newTrace := ptrace.NewTraces()
+				newResourceSpans := newTrace.ResourceSpans()
+				newResourceSpan := newResourceSpans.AppendEmpty()
+				newResourceSpan.SetSchemaUrl(resourceSpan.SchemaUrl())
+				newResource := newResourceSpan.Resource()
+				resource.CopyTo(newResource)
+				newScopeSpans := newResourceSpan.ScopeSpans()
+				newScopeSpan := newScopeSpans.AppendEmpty()
+				newScopeSpan.SetSchemaUrl(scopeSpan.SchemaUrl())
+				newScope := newScopeSpan.Scope()
+				scope.CopyTo(newScope)
+				newSpans := newScopeSpan.Spans()
+				newSpan := newSpans.AppendEmpty()
+				span.CopyTo(newSpan)
+
+				newTraces = append(newTraces, newTrace)
+			}
+		}
+	}
+
+	return newTraces
 }
