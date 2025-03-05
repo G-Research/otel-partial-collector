@@ -4,4 +4,6 @@ use (
 	./otelpartialexporter
 	./otelpartialreceiver
 	./postgres
+    ./cmd/otel-partial-exporter
+    ./cmd/otel-partial-receiver
 )

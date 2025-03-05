@@ -1,0 +1,18 @@
+dist:
+  module: github.com/G-Research/otel-partial-connector/cmd/otel-partial-exporter
+  name: otelpartialexporter
+  description: Open telemetry exporter
+  output_path: ./cmd/otel-partial-exporter
+  version: 0.1.0
+
+exporters:
+  - gomod: go.opentelemetry.io/collector/exporter/debugexporter v0.119.0
+  - gomod: go.opentelemetry.io/collector/exporter/otlpexporter v0.119.0
+  - gomod: github.com/G-Research/otel-partial-connector/otelpartialexporter v0.1.0
+    import: github.com/G-Research/otel-partial-connector/otelpartialexporter
+
+processors:
+  - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.119.0
+
+receivers:
+  - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.119.0
