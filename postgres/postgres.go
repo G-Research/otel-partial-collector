@@ -133,9 +133,9 @@ func (db *DB) PutTrace(ctx context.Context, traceID, spanID string, trace []byte
 INSERT INTO partial_traces
 (trace_id, span_id, trace, timestamp)
 VALUES
-($1, $2, NOW())
+($1, $2, $3, NOW())
 ON CONFLICT (trace_id, span_id) DO UPDATE
-SET trace = $2, timestamp = NOW()
+SET trace = $3, timestamp = NOW()
 `
 
 	if _, err := db.Exec(ctx, q, traceID, spanID, trace); err != nil {

@@ -14,15 +14,22 @@ import (
 	"github.com/G-Research/otel-partial-connector/postgres"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
+
+	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-var protoMarshaller ptrace.ProtoMarshaler
+var (
+	protoMarshaller   ptrace.ProtoMarshaler
+	protoUnmarshaller ptrace.ProtoUnmarshaler
+)
 
 type TestSuite struct {
 	suite.Suite
@@ -37,7 +44,7 @@ func (hs *TestSuite) SetupSuite() {
 	ctx := context.Background()
 
 	cfg := InstanceConfig{
-		User:     "test",
+		User:     "postgres",
 		Password: "test",
 		DBName:   "test",
 		Host:     "localhost",
@@ -60,6 +67,7 @@ func (hs *TestSuite) SetupSuite() {
 }
 
 func (ts *TestSuite) TestCreateTraces() {
+	ctx := context.Background()
 	t := ts.T()
 	traceID, spanID, trace := generateTrace(t)
 
@@ -67,7 +75,28 @@ func (ts *TestSuite) TestCreateTraces() {
 	require.NoError(t, err)
 
 	err = ts.tp.db.PutTrace(context.Background(), traceID.String(), spanID.String(), b)
+	require.NoError(t, err, "failed to put the first trace")
+
+	err = ts.tp.db.PutTrace(context.Background(), traceID.String(), spanID.String(), b)
+	require.NoError(t, err, "repeated put should succeed")
+
+	rows, err := ts.tp.db.Query(ctx, "SELECT trace from partial_traces")
 	require.NoError(t, err)
+	defer rows.Close()
+
+	var got []ptrace.Traces
+	for rows.Next() {
+		var bytes []byte
+		err = rows.Scan(&bytes)
+		require.NoError(t, err)
+
+		trace, err := protoUnmarshaller.UnmarshalTraces(bytes)
+		require.NoError(t, err)
+		got = append(got, trace)
+	}
+
+	assert.Equal(t, 1, len(got))
+	assert.Equal(t, trace, got[0])
 }
 
 func (tp *TestPostgres) Migration(ctx context.Context, dir string) error {
