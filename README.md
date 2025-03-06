@@ -38,12 +38,12 @@ The tool used can be installed from [here](https://github.com/golang-migrate/mig
 3. Generate binary:
 
 ```bash
-mkdir cmd || true
-./bin/ocb --config example/builder-config.yaml
+mkdir bin || true
+./ocb --config example/builder-config.yaml
 ```
 
 4. Run the app
 
 ```bash
-./cmd/otelpartialconnector --config example/config.yaml
+./bin/otel-partial-span --config example/config.yaml
 ```

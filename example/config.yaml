@@ -5,24 +5,26 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
+  otelpartialreceiver:
+    postgres: "postgres://postgres:test@127.0.0.1:40444/otelpartialconnector?sslmode=disable"
+    interval: "24h"
 
 exporters:
   debug:
+  otelpartialexporter:
+    postgres: "postgres://postgres:test@127.0.0.1:40444/otelpartialconnector?sslmode=disable"
 
 processors:
   batch:
-
-connectors:
-  otelpartialconnector:
-    postgres: "postgres://postgres:test@127.0.0.1:40444/otelpartialconnector?sslmode=disable"
-    gc_older_than: "24h"
+  groupbytrace:
 
 service:
   pipelines:
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otelpartialconnector]
+      exporters: [otelpartialexporter]
     traces:
-      receivers: [otelpartialconnector]
+      receivers: [otelpartialreceiver]
+      processors: [groupbytrace]
       exporters: [debug]

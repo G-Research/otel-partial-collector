@@ -106,7 +106,7 @@ func (r *otelPartialReceiver) loop(ctx context.Context) {
 }
 
 func (c *otelPartialReceiver) gc(ctx context.Context) error {
-	targetTimestamp := time.Now().Add(-c.interval) // todo: configurable
+	targetTimestamp := time.Now().Add(-c.interval)
 
 	var errs []error
 	if err := c.db.Transact(
