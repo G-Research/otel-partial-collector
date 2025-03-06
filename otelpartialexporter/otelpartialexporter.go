@@ -132,9 +132,11 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 
 						if err := e.db.PutTrace(
 							ctx,
-							span.TraceID().String(),
-							span.SpanID().String(),
-							b,
+							&postgres.PartialTrace{
+								TraceID: span.TraceID().String(),
+								SpanID:  span.SpanID().String(),
+								Trace:   b,
+							},
 						); err != nil {
 							errs = append(errs, fmt.Errorf("failed to put trace: %w", err))
 							continue

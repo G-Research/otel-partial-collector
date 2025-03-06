@@ -69,34 +69,31 @@ func (hs *TestSuite) SetupSuite() {
 func (ts *TestSuite) TestCreateTraces() {
 	ctx := context.Background()
 	t := ts.T()
-	traceID, spanID, trace := generateTrace(t)
+	partialTrace := generatePartialTrace(t)
 
-	b, err := protoMarshaller.MarshalTraces(trace)
-	require.NoError(t, err)
-
-	err = ts.tp.db.PutTrace(context.Background(), traceID.String(), spanID.String(), b)
+	err := ts.tp.db.PutTrace(context.Background(), partialTrace)
 	require.NoError(t, err, "failed to put the first trace")
 
-	err = ts.tp.db.PutTrace(context.Background(), traceID.String(), spanID.String(), b)
+	err = ts.tp.db.PutTrace(context.Background(), partialTrace)
 	require.NoError(t, err, "repeated put should succeed")
 
-	rows, err := ts.tp.db.Query(ctx, "SELECT trace from partial_traces")
+	rows, err := ts.tp.db.Query(
+		ctx,
+		"SELECT trace_id, span_id, trace from partial_traces",
+	)
 	require.NoError(t, err)
 	defer rows.Close()
 
-	var got []ptrace.Traces
+	var got []*postgres.PartialTrace
 	for rows.Next() {
-		var bytes []byte
-		err = rows.Scan(&bytes)
+		var pt postgres.PartialTrace
+		err = rows.Scan(&pt.TraceID, &pt.SpanID, &pt.Trace)
 		require.NoError(t, err)
-
-		trace, err := protoUnmarshaller.UnmarshalTraces(bytes)
-		require.NoError(t, err)
-		got = append(got, trace)
+		got = append(got, &pt)
 	}
 
 	assert.Equal(t, 1, len(got))
-	assert.Equal(t, trace, got[0])
+	assert.Equal(t, partialTrace, got[0])
 }
 
 func (tp *TestPostgres) Migration(ctx context.Context, dir string) error {
@@ -194,7 +191,7 @@ func NewTestPostgres(ctx context.Context, cfg InstanceConfig) (*TestPostgres, er
 	}, nil
 }
 
-func generateTrace(t *testing.T) (traceID pcommon.TraceID, spanID pcommon.SpanID, trace ptrace.Traces) {
+func generatePartialTrace(t *testing.T) *postgres.PartialTrace {
 	traces := ptrace.NewTraces()
 
 	rs := traces.ResourceSpans().AppendEmpty()
@@ -209,13 +206,19 @@ func generateTrace(t *testing.T) (traceID pcommon.TraceID, spanID pcommon.SpanID
 	sattrs := s.Attributes()
 	sattrs.PutBool("ok", true)
 
-	traceID = newTraceID(t)
-	spanID = newSpanID(t)
-
+	traceID := newTraceID(t)
+	spanID := newSpanID(t)
 	s.SetTraceID(traceID)
 	s.SetSpanID(spanID)
 
-	return traceID, spanID, traces
+	b, err := protoMarshaller.MarshalTraces(traces)
+	require.NoError(t, err)
+
+	return &postgres.PartialTrace{
+		TraceID: traceID.String(),
+		SpanID:  spanID.String(),
+		Trace:   b,
+	}
 }
 
 func newTraceID(*testing.T) pcommon.TraceID {
