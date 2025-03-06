@@ -136,7 +136,7 @@ func newPartialExporter(ctx context.Context, settings exporter.Settings, baseCfg
 
 	ex := &otelPartialExporter{
 		db:     db,
-		logger: nil,
+		logger: settings.Logger,
 	}
 
 	return exporterhelper.NewLogs(

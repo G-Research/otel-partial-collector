@@ -34,7 +34,7 @@ func components() (otelcol.Factories, error) {
 		return otelcol.Factories{}, err
 	}
 	factories.ReceiverModules = make(map[component.Type]string, len(factories.Receivers))
-	factories.ReceiverModules[otelpartialreceiver.NewFactory().Type()] = "github.com/G-Research/otel-partial-connector/otelpartialreceiver v0.1.0"
+	factories.ReceiverModules[otelpartialreceiver.NewFactory().Type()] = "github.com/G-Research/otel-partial-connector v0.1.0"
 
 	factories.Exporters, err = otelcol.MakeFactoryMap[exporter.Factory](
 		debugexporter.NewFactory(),

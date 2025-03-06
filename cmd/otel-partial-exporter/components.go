@@ -48,7 +48,7 @@ func components() (otelcol.Factories, error) {
 	factories.ExporterModules = make(map[component.Type]string, len(factories.Exporters))
 	factories.ExporterModules[debugexporter.NewFactory().Type()] = "go.opentelemetry.io/collector/exporter/debugexporter v0.119.0"
 	factories.ExporterModules[otlpexporter.NewFactory().Type()] = "go.opentelemetry.io/collector/exporter/otlpexporter v0.119.0"
-	factories.ExporterModules[otelpartialexporter.NewFactory().Type()] = "github.com/G-Research/otel-partial-connector/otelpartialexporter v0.1.0"
+	factories.ExporterModules[otelpartialexporter.NewFactory().Type()] = "github.com/G-Research/otel-partial-connector v0.1.0"
 
 	factories.Processors, err = otelcol.MakeFactoryMap[processor.Factory](
 		batchprocessor.NewFactory(),

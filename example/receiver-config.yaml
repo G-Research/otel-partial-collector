@@ -1,8 +1,9 @@
 dist:
   module: github.com/G-Research/otel-partial-connector/cmd/otel-partial-receiver
-  name: otelpartialconnector
-  description: Open telemetry receiver
+  name: otel-partial-receiver
+  description: Open telemetry partial receiver
   output_path: ./cmd/otel-partial-receiver
+  go: 1.24.0
   version: 0.1.0
 
 exporters:
@@ -13,4 +14,9 @@ processors:
   - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.119.0
 
 receivers:
-  - gomod: github.com/G-Research/otel-partial-connector/otelpartialreceiver v0.1.0
+  - gomod: github.com/G-Research/otel-partial-connector v0.1.0
+    import: github.com/G-Research/otel-partial-connector/otelpartialreceiver
+    name: otelpartialreceiver
+
+replaces:
+  - github.com/G-Research/otel-partial-connector => ../../
