@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/G-Research/otel-partial-connector/postgres"
 	"github.com/jackc/pgx/v5"
@@ -11,6 +12,7 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
@@ -76,8 +78,8 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 
 			for k := range records.Len() {
 				logRecord := records.At(k)
-				attrs := logRecord.Attributes()
-				value, ok := attrs.Get("partial.event")
+				logAttrs := logRecord.Attributes()
+				value, ok := logAttrs.Get("partial.event")
 				if !ok {
 					continue
 				}
@@ -98,6 +100,36 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 						}
 
 						span := t.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
+
+						spanAttrs := span.Attributes()
+						logAttrs.Range(func(k string, v pcommon.Value) bool {
+							if !strings.HasPrefix(k, "partial.") {
+								return true
+							}
+							_, ok := spanAttrs.Get(k)
+							if ok {
+								return true
+							}
+							switch v.Type() {
+							case pcommon.ValueTypeBool:
+								spanAttrs.PutBool(k, v.Bool())
+							case pcommon.ValueTypeBytes:
+								bytes := spanAttrs.PutEmptyBytes(k)
+								v.Bytes().MoveTo(bytes)
+							case pcommon.ValueTypeDouble:
+								spanAttrs.PutDouble(k, v.Double())
+							case pcommon.ValueTypeInt:
+								spanAttrs.PutInt(k, v.Int())
+							case pcommon.ValueTypeMap:
+								m := spanAttrs.PutEmptyMap(k)
+								v.Map().MoveTo(m)
+							case pcommon.ValueTypeSlice:
+								s := spanAttrs.PutEmptySlice(k)
+								v.Slice().MoveAndAppendTo(s)
+							}
+							return true
+						})
+
 						if err := e.db.PutTrace(
 							ctx,
 							span.TraceID().String(),
