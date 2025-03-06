@@ -107,7 +107,9 @@ func (r *otelPartialReceiver) loop(ctx context.Context) {
 
 func (c *otelPartialReceiver) gc(ctx context.Context) error {
 	targetTimestamp := time.Now().Add(-c.interval) // todo: configurable
-	return c.db.Transact(
+
+	var errs []error
+	if err := c.db.Transact(
 		ctx,
 		pgx.TxOptions{
 			IsoLevel:       pgx.Serializable,
@@ -120,7 +122,6 @@ func (c *otelPartialReceiver) gc(ctx context.Context) error {
 				return fmt.Errorf("failed to get traces older than %v: %v", targetTimestamp, err)
 			}
 
-			var errs []error
 			for _, b := range traces {
 				trace, err := tracesProtoUnmarshaler.UnmarshalTraces(b)
 				if err != nil {
@@ -141,10 +142,13 @@ func (c *otelPartialReceiver) gc(ctx context.Context) error {
 					continue
 				}
 			}
-
-			return errors.Join(errs...)
+			return nil
 		},
-	)
+	); err != nil {
+		return fmt.Errorf("transaction errors %w: %w", errors.Join(errs...), err)
+	}
+
+	return errors.Join(errs...)
 }
 
 func NewFactory() receiver.Factory {
