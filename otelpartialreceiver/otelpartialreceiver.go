@@ -131,6 +131,8 @@ func (c *otelPartialReceiver) gc(ctx context.Context) error {
 
 				span := trace.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
 				span.SetEndTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+				attrs := span.Attributes()
+				attrs.PutBool("partial.gc", true)
 
 				if err := c.consumer.ConsumeTraces(ctx, trace); err != nil {
 					errs = append(errs, fmt.Errorf("failed to consume trace %v: %w", trace, err))

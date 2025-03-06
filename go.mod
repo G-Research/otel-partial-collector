@@ -14,6 +14,7 @@ require (
 	go.opentelemetry.io/collector/pdata v1.27.0
 	go.opentelemetry.io/collector/receiver v0.121.0
 	go.uber.org/zap v1.27.0
+	gotest.tools/v3 v3.5.1
 )
 
 require (
@@ -36,6 +37,7 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect

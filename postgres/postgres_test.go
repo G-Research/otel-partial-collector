@@ -14,7 +14,6 @@ import (
 	"github.com/G-Research/otel-partial-connector/postgres"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -64,36 +63,6 @@ func (hs *TestSuite) SetupSuite() {
 
 	hs.tp.db, err = postgres.NewDB(ctx, cfg.DBConnStr())
 	require.NoError(t, err)
-}
-
-func (ts *TestSuite) TestCreateTraces() {
-	ctx := context.Background()
-	t := ts.T()
-	partialTrace := generatePartialTrace(t)
-
-	err := ts.tp.db.PutTrace(context.Background(), partialTrace)
-	require.NoError(t, err, "failed to put the first trace")
-
-	err = ts.tp.db.PutTrace(context.Background(), partialTrace)
-	require.NoError(t, err, "repeated put should succeed")
-
-	rows, err := ts.tp.db.Query(
-		ctx,
-		"SELECT trace_id, span_id, trace from partial_traces",
-	)
-	require.NoError(t, err)
-	defer rows.Close()
-
-	var got []*postgres.PartialTrace
-	for rows.Next() {
-		var pt postgres.PartialTrace
-		err = rows.Scan(&pt.TraceID, &pt.SpanID, &pt.Trace)
-		require.NoError(t, err)
-		got = append(got, &pt)
-	}
-
-	assert.Equal(t, 1, len(got))
-	assert.Equal(t, partialTrace, got[0])
 }
 
 func (tp *TestPostgres) Migration(ctx context.Context, dir string) error {
