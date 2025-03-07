@@ -9,7 +9,7 @@ Valid values for the `partial.event` attribute are:
 - `heartbeat`: This event stores the OTLP Trace serialized as protobuf into the database.
 - `stop`: This event removes the partial events associated with that trace from the database since the trace is already propagated using the trace pipeline.
 
-The connector runs a background process, checking partial traces stored inside the database. If the trace is older than `config.gc_older_than`, the connector will push the trace with the `connector.gc` attribute set to `true`. This way, users can distinguish what traces are pushed by the connector.
+The connector runs a background process, checking partial traces stored inside the database. If the trace is older than `config.gc_threshold`, the connector will push the trace with the `partial.gc` attribute set to `true`. This way, users can distinguish what traces are pushed by the connector.
 
 ## Run locally
 

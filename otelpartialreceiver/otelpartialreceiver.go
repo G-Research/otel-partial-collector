@@ -26,12 +26,12 @@ var (
 )
 
 type Config struct {
-	Postgres string `mapstructure:"postgres"`
-	Interval string `mapstructure:"interval"`
+	Postgres    string `mapstructure:"postgres"`
+	GCThreshold string `mapstructure:"gc_threshold"`
 }
 
 func (c *Config) Validate() error {
-	if _, err := time.ParseDuration(c.Interval); err != nil {
+	if _, err := time.ParseDuration(c.GCThreshold); err != nil {
 		return fmt.Errorf("failed to parse interval duration: %v", err)
 	}
 	return nil
@@ -39,7 +39,7 @@ func (c *Config) Validate() error {
 
 func defaultConfig() component.Config {
 	return &Config{
-		Interval: "24h",
+		GCThreshold: "24h",
 	}
 }
 
@@ -61,7 +61,7 @@ func newPartialReceiver(ctx context.Context, params receiver.Settings, baseCfg c
 		return nil, fmt.Errorf("failed to create new db connection: %v", err)
 	}
 
-	d, err := time.ParseDuration(cfg.Interval)
+	d, err := time.ParseDuration(cfg.GCThreshold)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse duration interval")
 	}
@@ -86,6 +86,7 @@ func (r *otelPartialReceiver) Start(rootCtx context.Context, host component.Host
 }
 
 func (r *otelPartialReceiver) Shutdown(ctx context.Context) error {
+	r.logger.Info("shutting down receiver")
 	if r.cancelFunc != nil {
 		r.cancelFunc()
 	}

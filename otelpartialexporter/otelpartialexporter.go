@@ -106,10 +106,12 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 							if !strings.HasPrefix(k, "partial.") {
 								return true
 							}
+
 							_, ok := spanAttrs.Get(k)
 							if ok {
 								return true
 							}
+
 							switch v.Type() {
 							case pcommon.ValueTypeBool:
 								spanAttrs.PutBool(k, v.Bool())
