@@ -132,7 +132,7 @@ func (c *otelPartialReceiver) gc(ctx context.Context) error {
 		func(ctx context.Context, db *postgres.DB) error {
 			c.logger.Info("Collecting traces", zap.String("older_than", targetTimestamp.String()))
 
-			traces, err := c.db.GetTracesOlderThan(ctx, targetTimestamp)
+			traces, err := db.GetTracesOlderThan(ctx, targetTimestamp)
 			if err != nil {
 				return fmt.Errorf("failed to get traces older than %v: %v", targetTimestamp, err)
 			}
