@@ -49,9 +49,9 @@ WHERE trace_id = $1 AND span_id = $2
 	return nil
 }
 
-func (db *DB) GetTracesOlderThan(ctx context.Context, timestamp time.Time) ([][]byte, error) {
+func (db *DB) GetTracesOlderThan(ctx context.Context, timestamp time.Time) ([]*PartialTrace, error) {
 	q := `
-SELECT trace FROM partial_traces
+SELECT trace_id, span_id, trace FROM partial_traces
 WHERE timestamp < $1
 	`
 
@@ -61,13 +61,13 @@ WHERE timestamp < $1
 	}
 	defer rows.Close()
 
-	var traces [][]byte
+	var traces []*PartialTrace
 	for rows.Next() {
-		var bytes []byte
-		if err := rows.Scan(&bytes); err != nil {
+		var trace PartialTrace
+		if err := rows.Scan(&trace.TraceID, &trace.SpanID, &trace.Trace); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %v", err)
 		}
-		traces = append(traces, bytes)
+		traces = append(traces, &trace)
 	}
 
 	return traces, nil

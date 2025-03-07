@@ -7,7 +7,7 @@ receivers:
         endpoint: 0.0.0.0:4318
   otelpartialreceiver:
     postgres: "postgres://postgres:test@127.0.0.1:40444/otelpartialconnector?sslmode=disable"
-    interval: "24h"
+    gc_threshold: "30s"
 
 exporters:
   debug:

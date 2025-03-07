@@ -2,6 +2,7 @@ package otelpartialexporter
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -62,11 +63,13 @@ func (e *otelPartialExporter) Shutdown(ctx context.Context) error {
 }
 
 func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) error {
+	// TODO: maybe check the level and use debug log here
 	out, err := logsJSONMarshaler.MarshalLogs(logs)
 	if err != nil {
 		return err
 	}
-	e.logger.Debug("Consuming logs", zap.String("log", string(out)))
+
+	e.logger.Info("Consuming logs", zap.String("log", string(out)))
 
 	var errs []error
 	resourceLogs := logs.ResourceLogs()
@@ -85,7 +88,13 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 				}
 				val := value.Str()
 
-				traces, err := tracesProtoUnmarshaler.UnmarshalTraces(logRecord.Body().Bytes().AsRaw())
+				rawTrace, err := base64.StdEncoding.DecodeString(logRecord.Body().AsString())
+				if err != nil {
+					e.logger.Error("failed to base64 decode trace", zap.Error(err))
+					continue
+				}
+
+				traces, err := tracesProtoUnmarshaler.UnmarshalTraces(rawTrace)
 				if err != nil {
 					return fmt.Errorf("failed to unmarshal traces: %v", err)
 				}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/G-Research/otel-partial-connector/postgres"
@@ -44,10 +45,10 @@ func defaultConfig() component.Config {
 }
 
 type otelPartialReceiver struct {
-	consumer consumer.Traces
-	db       *postgres.DB
-	interval time.Duration
-	host     component.Host
+	consumer    consumer.Traces
+	db          *postgres.DB
+	gcThreshold time.Duration
+	host        component.Host
 
 	logger *zap.Logger
 
@@ -67,9 +68,9 @@ func newPartialReceiver(ctx context.Context, params receiver.Settings, baseCfg c
 	}
 
 	r := &otelPartialReceiver{
-		db:       db,
-		logger:   params.Logger,
-		interval: d,
+		db:          db,
+		logger:      params.Logger,
+		gcThreshold: d,
 	}
 
 	return r, nil
@@ -80,6 +81,7 @@ func (r *otelPartialReceiver) Start(rootCtx context.Context, host component.Host
 	r.cancelFunc = cancel
 	r.host = host
 
+	r.logger.Info("Starting gc loop", zap.String("gc_threshold", r.gcThreshold.String()))
 	go r.loop(ctx)
 
 	return rootCtx.Err()
@@ -95,10 +97,12 @@ func (r *otelPartialReceiver) Shutdown(ctx context.Context) error {
 
 func (r *otelPartialReceiver) loop(ctx context.Context) {
 	for {
+		// between 30 and 50 seconds
+		jitter := rand.Intn(20)
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(30 * time.Second):
+		case <-time.After(time.Duration(30+jitter) * time.Second):
 			if err := r.gc(ctx); err != nil {
 				r.logger.Error("encountered errors while running gc", zap.Error(err))
 			}
@@ -107,7 +111,8 @@ func (r *otelPartialReceiver) loop(ctx context.Context) {
 }
 
 func (c *otelPartialReceiver) gc(ctx context.Context) error {
-	targetTimestamp := time.Now().Add(-c.interval)
+	now := time.Now()
+	targetTimestamp := now.Add(-c.gcThreshold)
 
 	var errs []error
 	if err := c.db.Transact(
@@ -118,20 +123,24 @@ func (c *otelPartialReceiver) gc(ctx context.Context) error {
 			DeferrableMode: pgx.NotDeferrable,
 		},
 		func(ctx context.Context, db *postgres.DB) error {
+			c.logger.Info("Collecting traces", zap.String("older_than", targetTimestamp.String()))
+
 			traces, err := c.db.GetTracesOlderThan(ctx, targetTimestamp)
 			if err != nil {
 				return fmt.Errorf("failed to get traces older than %v: %v", targetTimestamp, err)
 			}
 
-			for _, b := range traces {
-				trace, err := tracesProtoUnmarshaler.UnmarshalTraces(b)
+			c.logger.Info("Number of traces to collect", zap.Int("count", len(traces)))
+
+			for _, pt := range traces {
+				trace, err := tracesProtoUnmarshaler.UnmarshalTraces(pt.Trace)
 				if err != nil {
 					errs = append(errs, fmt.Errorf("failed to unmarshal traces: %w", err))
 					continue
 				}
 
 				span := trace.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
-				span.SetEndTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+				span.SetEndTimestamp(pcommon.NewTimestampFromTime(now))
 				attrs := span.Attributes()
 				attrs.PutBool("partial.gc", true)
 
@@ -140,7 +149,7 @@ func (c *otelPartialReceiver) gc(ctx context.Context) error {
 					continue
 				}
 
-				if err := db.RemoveTrace(ctx, span.TraceID().String(), span.SpanID().String()); err != nil {
+				if err := db.RemoveTrace(ctx, pt.TraceID, pt.SpanID); err != nil {
 					errs = append(errs, fmt.Errorf("failed to rmeove trace: %v", err))
 					continue
 				}

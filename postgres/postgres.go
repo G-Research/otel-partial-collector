@@ -52,7 +52,7 @@ func (db *DB) Transact(ctx context.Context, opts pgx.TxOptions, f func(ctx conte
 
 func (db *DB) transactWithRetry(ctx context.Context, opts pgx.TxOptions, f func(ctx context.Context, db *DB) error) error {
 	var errs []error
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		err := db.transact(ctx, opts, f)
 		if err == nil {
 			return nil
