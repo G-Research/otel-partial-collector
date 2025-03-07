@@ -1,7 +1,16 @@
 # Partial connector
 
-Partial connector is a custom implementation of [OTEP Connector](https://opentelemetry.io/docs/collector/building/connector/) where connector
-transforms logs to traces.
+Repository contains two components that are intended to scale separately.
+
+1. Otel Partial Exporter
+2. Otel Partial Receiver
+
+Both of these components connect to the same Postgresql database. The exporter is responsible for writing/removing partial traces, while the receiver
+is responsible for sending partial traces through the pipeline when partial span is not received for the `gc_threshold` duration.
+
+## Otel Partial Exporter
+
+Otel Partial Exporter receives logs. Inside the log, the body field is base64 protobuf encoded trace.
 
 When the log is received, `partial.event` is extracted from the log attributes. If it doesn't exist, the log will be ignored.
 
@@ -9,16 +18,16 @@ Valid values for the `partial.event` attribute are:
 - `heartbeat`: This event stores the OTLP Trace serialized as protobuf into the database.
 - `stop`: This event removes the partial events associated with that trace from the database since the trace is already propagated using the trace pipeline.
 
-The connector runs a background process, checking partial traces stored inside the database. If the trace is older than `config.gc_threshold`, the connector will push the trace with the `partial.gc` attribute set to `true`. This way, users can distinguish what traces are pushed by the connector.
+Each trace inside the database contains a single span. Partial exporter takes attributes from the log (excluding ones with `partial.` prefix), and merges them
+with the span attributes. If attribute is already present in a span, the span attribute takes precedence.
 
-## Run locally
+## Otel Partial Receiver
 
-To run the connector, you first should generate a binary file. In order to do it
-you should use ocb. Install ocb by referring to [this](https://opentelemetry.io/docs/collector/custom-collector/#step-1---install-the-builder) page.
+Otel Partial Receiver is responsible for monitoring old traces inside the database. It uses the `gc_threshold` to query old traces, remove them from the database
+and send them through the pipeline. If the send fails, the record will stay in the database and will be subject for the next push.
 
-Once you have the ocb, you can use `example/builder-config.yaml` to test this application.
-However, you should probably generate a new one more suitable for your environment.
-The builder manifest is documented [here](https://opentelemetry.io/docs/collector/custom-collector/#step-2---create-a-builder-manifest-file)
+Each partial trace pushed by the Otel Partial Receiver contains the `partial.gc` attribute set to `true` to distinguish spans pushed by the receiver.
+
 
 ### Developer setup
 
@@ -47,3 +56,8 @@ mkdir bin || true
 ```bash
 ./bin/otel-partial-span --config example/config.yaml
 ```
+
+## Important links
+
+- [Installation of the ocb](https://opentelemetry.io/docs/collector/custom-collector/#step-1---install-the-builder)
+- [Builder manifest documentation](https://opentelemetry.io/docs/collector/custom-collector/#step-2---create-a-builder-manifest-file)
