@@ -56,6 +56,7 @@ type otelPartialExporter struct {
 }
 
 func (e *otelPartialExporter) Shutdown(ctx context.Context) error {
+	e.logger.Info("Shutting down otel partial exporter")
 	if e.cancelFunc != nil {
 		e.cancelFunc()
 	}

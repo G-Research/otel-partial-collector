@@ -53,6 +53,7 @@ type otelPartialReceiver struct {
 	logger *zap.Logger
 
 	cancelFunc context.CancelFunc
+	doneCh     chan struct{}
 }
 
 func newPartialReceiver(ctx context.Context, params receiver.Settings, baseCfg component.Config, consumer consumer.Traces) (receiver.Traces, error) {
@@ -79,6 +80,7 @@ func newPartialReceiver(ctx context.Context, params receiver.Settings, baseCfg c
 func (r *otelPartialReceiver) Start(rootCtx context.Context, host component.Host) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	r.cancelFunc = cancel
+	r.doneCh = make(chan struct{})
 	r.host = host
 
 	r.logger.Info("Starting gc loop", zap.String("gc_threshold", r.gcThreshold.String()))
@@ -88,9 +90,12 @@ func (r *otelPartialReceiver) Start(rootCtx context.Context, host component.Host
 }
 
 func (r *otelPartialReceiver) Shutdown(ctx context.Context) error {
-	r.logger.Info("shutting down receiver")
+	r.logger.Info("Shutting down receiver")
 	if r.cancelFunc != nil {
 		r.cancelFunc()
+		r.logger.Info("Waiting on gc loop to finish")
+		<-r.doneCh
+		r.logger.Info("GC loop done")
 	}
 	return r.db.Close(ctx)
 }
@@ -101,6 +106,8 @@ func (r *otelPartialReceiver) loop(ctx context.Context) {
 		jitter := rand.Intn(20)
 		select {
 		case <-ctx.Done():
+			r.logger.Info("Stopping gc loop after shutdown")
+			close(r.doneCh)
 			return
 		case <-time.After(time.Duration(30+jitter) * time.Second):
 			if err := r.gc(ctx); err != nil {
