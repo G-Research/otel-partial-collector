@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -63,6 +64,15 @@ func (hs *TestSuite) SetupSuite() {
 
 	hs.tp.db, err = postgres.NewDB(ctx, cfg.DBConnStr())
 	require.NoError(t, err)
+}
+
+func (hs *TestSuite) acquireDB() *postgres.DB {
+	hs.tp.mu.Lock()
+	return hs.tp.db
+}
+
+func (hs *TestSuite) releaseDB() {
+	hs.tp.mu.Unlock()
 }
 
 func (tp *TestPostgres) Migration(ctx context.Context, dir string) error {
@@ -128,6 +138,7 @@ func (c *InstanceConfig) MigrationConnStr() string {
 type TestPostgres struct {
 	container testcontainers.Container
 	cfg       InstanceConfig
+	mu        sync.Mutex
 	db        *postgres.DB
 }
 
