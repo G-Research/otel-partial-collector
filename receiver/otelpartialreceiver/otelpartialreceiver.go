@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/G-Research/otel-partial-collector/postgres"
+	"github.com/G-Research/otel-partial-collector/internal/postgres"
 	"github.com/jackc/pgx/v5"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"

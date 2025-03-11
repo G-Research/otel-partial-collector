@@ -3,7 +3,7 @@ package postgres_test
 import (
 	"context"
 
-	"github.com/G-Research/otel-partial-collector/postgres"
+	"github.com/G-Research/otel-partial-collector/internal/postgres"
 	"github.com/stretchr/testify/require"
 	"gotest.tools/v3/assert"
 )

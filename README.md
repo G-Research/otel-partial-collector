@@ -57,6 +57,3 @@ go run go.opentelemetry.io/collector/cmd/builder@v0.121.0 --config ./example/bui
 ./bin/otel-partial-span --config example/config.yaml
 ```
 
-## Important links
-
-- [Builder manifest documentation](https://opentelemetry.io/docs/collector/custom-collector/#step-2---create-a-builder-manifest-file)
