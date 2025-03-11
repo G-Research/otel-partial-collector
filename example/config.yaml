@@ -6,13 +6,13 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
   otelpartialreceiver:
-    postgres: "postgres://postgres:test@127.0.0.1:40444/otelpartialconnector?sslmode=disable"
+    postgres: "postgres://postgres:test@127.0.0.1:40444/otelpartialcollector?sslmode=disable"
     gc_threshold: "30s"
 
 exporters:
   debug:
   otelpartialexporter:
-    postgres: "postgres://postgres:test@127.0.0.1:40444/otelpartialconnector?sslmode=disable"
+    postgres: "postgres://postgres:test@127.0.0.1:40444/otelpartialcollector?sslmode=disable"
 
 processors:
   batch:

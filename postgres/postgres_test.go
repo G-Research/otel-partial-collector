@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/G-Research/otel-partial-connector/postgres"
+	"github.com/G-Research/otel-partial-collector/postgres"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"

@@ -8,8 +8,8 @@ dist:
 exporters:
   - gomod: go.opentelemetry.io/collector/exporter/debugexporter v0.121.0
   - gomod: go.opentelemetry.io/collector/exporter/otlpexporter v0.121.0
-  - gomod: github.com/G-Research/otel-partial-connector v0.1.0
-    import: github.com/G-Research/otel-partial-connector/otelpartialexporter
+  - gomod: github.com/G-Research/otel-partial-collector v0.1.0
+    import: github.com/G-Research/otel-partial-collector/otelpartialexporter
     name: otelpartialexporter
 
 processors:
@@ -19,9 +19,9 @@ processors:
 
 receivers:
   - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.121.0
-  - gomod: github.com/G-Research/otel-partial-connector v0.1.0
-    import: github.com/G-Research/otel-partial-connector/otelpartialreceiver
+  - gomod: github.com/G-Research/otel-partial-collector v0.1.0
+    import: github.com/G-Research/otel-partial-collector/otelpartialreceiver
     name: otelpartialreceiver
 
 replaces:
-  - github.com/G-Research/otel-partial-connector => ../
+  - github.com/G-Research/otel-partial-collector => ../
