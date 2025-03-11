@@ -48,7 +48,7 @@ The tool used can be installed from [here](https://github.com/golang-migrate/mig
 
 ```bash
 mkdir bin || true
-./ocb --config example/builder-config.yaml
+go run go.opentelemetry.io/collector/cmd/builder@v0.121.0 --config ./example/builder-config.yaml
 ```
 
 4. Run the app
