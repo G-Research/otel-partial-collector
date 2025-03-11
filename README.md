@@ -59,5 +59,4 @@ go run go.opentelemetry.io/collector/cmd/builder@v0.121.0 --config ./example/bui
 
 ## Important links
 
-- [Installation of the ocb](https://opentelemetry.io/docs/collector/custom-collector/#step-1---install-the-builder)
 - [Builder manifest documentation](https://opentelemetry.io/docs/collector/custom-collector/#step-2---create-a-builder-manifest-file)
