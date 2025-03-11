@@ -34,7 +34,7 @@ Each partial trace pushed by the Otel Partial Receiver contains the `partial.gc`
 The assumption is that you are in the repository root.
 
 #### Steps
-1. Run postgers
+1. Run postgres
 ```bash
 docker run --name otel-partial-collector-db -e POSTGRES_DB="otelpartialcollector" -e POSTGRES_PASSWORD=test -d -p 40444:5432 --rm postgres:latest
 ```
@@ -47,7 +47,6 @@ The tool used can be installed from [here](https://github.com/golang-migrate/mig
 3. Generate binary:
 
 ```bash
-mkdir bin || true
 go run go.opentelemetry.io/collector/cmd/builder@v0.121.0 --config ./example/builder-config.yaml
 ```
 
