@@ -100,19 +100,6 @@ func migrationDir() (string, error) {
 		return "", fmt.Errorf("failed to get working directory: %v", err)
 	}
 
-	// find go.mod file
-	for wd != "/" {
-		_, err := os.Stat(wd + "/go.mod")
-		if err == nil {
-			break
-		}
-		wd = filepath.Dir(wd)
-	}
-
-	if wd == "/" {
-		return "", fmt.Errorf("go.mod file not found")
-	}
-
 	return filepath.Clean(path.Join(wd, "migrations")), nil
 }
 

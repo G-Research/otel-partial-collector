@@ -40,7 +40,7 @@ docker run --name otel-partial-collector-db -e POSTGRES_DB="otelpartialcollector
 ```
 2. Apply migration:
 ```bash
-migrate -source file:///$(pwd)/migrations -database "postgres://postgres:test@localhost:40444/otelpartialcollector?sslmode=disable" up
+migrate -source file:///$(pwd)/internal/postgres/migrations -database "postgres://postgres:test@localhost:40444/otelpartialcollector?sslmode=disable" up
 ```
 The tool used can be installed from [here](https://github.com/golang-migrate/migrate/tree/master/cmd/migrate)
 
@@ -54,6 +54,6 @@ go run go.opentelemetry.io/collector/cmd/builder@v0.121.0 --config ./example/bui
 4. Run the app
 
 ```bash
-./bin/otel-partial-span --config example/config.yaml
+./bin/otel-partial-collector --config example/config.yaml
 ```
 
