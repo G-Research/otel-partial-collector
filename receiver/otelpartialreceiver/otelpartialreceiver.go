@@ -72,6 +72,7 @@ func newPartialReceiver(ctx context.Context, params receiver.Settings, baseCfg c
 		db:          db,
 		logger:      params.Logger,
 		gcThreshold: d,
+		consumer:    consumer,
 	}
 
 	return r, nil
