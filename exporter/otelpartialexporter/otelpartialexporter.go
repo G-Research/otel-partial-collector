@@ -76,6 +76,7 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 	resourceLogs := logs.ResourceLogs()
 	for i := range resourceLogs.Len() {
 		resourceLog := resourceLogs.At(i)
+		resourceAttrs := resourceLog.Resource().Attributes()
 		scopeLogs := resourceLog.ScopeLogs()
 		for j := range scopeLogs.Len() {
 			records := scopeLogs.At(j).LogRecords()
@@ -109,38 +110,8 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 							continue
 						}
 
+						mergeAttributes(t.ResourceSpans().At(0).Resource().Attributes(), resourceAttrs)
 						span := t.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
-
-						spanAttrs := span.Attributes()
-						logAttrs.Range(func(k string, v pcommon.Value) bool {
-							if !strings.HasPrefix(k, "partial.") {
-								return true
-							}
-
-							_, ok := spanAttrs.Get(k)
-							if ok {
-								return true
-							}
-
-							switch v.Type() {
-							case pcommon.ValueTypeBool:
-								spanAttrs.PutBool(k, v.Bool())
-							case pcommon.ValueTypeBytes:
-								bytes := spanAttrs.PutEmptyBytes(k)
-								v.Bytes().MoveTo(bytes)
-							case pcommon.ValueTypeDouble:
-								spanAttrs.PutDouble(k, v.Double())
-							case pcommon.ValueTypeInt:
-								spanAttrs.PutInt(k, v.Int())
-							case pcommon.ValueTypeMap:
-								m := spanAttrs.PutEmptyMap(k)
-								v.Map().MoveTo(m)
-							case pcommon.ValueTypeSlice:
-								s := spanAttrs.PutEmptySlice(k)
-								v.Slice().MoveAndAppendTo(s)
-							}
-							return true
-						})
 
 						if err := e.db.PutTrace(
 							ctx,
@@ -245,4 +216,38 @@ func flattenTraces(traces ptrace.Traces) []ptrace.Traces {
 	}
 
 	return newTraces
+}
+
+func mergeAttributes(dst pcommon.Map, sources ...pcommon.Map) {
+	for _, src := range sources {
+		src.Range(func(k string, v pcommon.Value) bool {
+			if strings.HasPrefix(k, "partial.") {
+				return true
+			}
+
+			_, ok := dst.Get(k)
+			if ok {
+				return true
+			}
+
+			switch v.Type() {
+			case pcommon.ValueTypeBool:
+				dst.PutBool(k, v.Bool())
+			case pcommon.ValueTypeBytes:
+				bytes := dst.PutEmptyBytes(k)
+				v.Bytes().MoveTo(bytes)
+			case pcommon.ValueTypeDouble:
+				dst.PutDouble(k, v.Double())
+			case pcommon.ValueTypeInt:
+				dst.PutInt(k, v.Int())
+			case pcommon.ValueTypeMap:
+				m := dst.PutEmptyMap(k)
+				v.Map().MoveTo(m)
+			case pcommon.ValueTypeSlice:
+				s := dst.PutEmptySlice(k)
+				v.Slice().MoveAndAppendTo(s)
+			}
+			return true
+		})
+	}
 }
