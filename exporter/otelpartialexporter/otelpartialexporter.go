@@ -104,14 +104,14 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 				switch val {
 				case "heartbeat":
 					for _, t := range flattenTraces(traces) {
+						mergeAttributes(t.ResourceSpans().At(0).Resource().Attributes(), resourceAttrs)
+						span := t.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
+
 						b, err := tracesProtoMarshaler.MarshalTraces(t)
 						if err != nil {
 							errs = append(errs, fmt.Errorf("failed to marshal trace %v: %w", t, err))
 							continue
 						}
-
-						mergeAttributes(t.ResourceSpans().At(0).Resource().Attributes(), resourceAttrs)
-						span := t.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
 
 						if err := e.db.PutTrace(
 							ctx,
