@@ -29,3 +29,6 @@ func TestMergeAttributes(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, int64(7), val.Int())
 }
+
+func TestTraceMergeResourceSpans(t *testing.T) {
+}

@@ -243,6 +243,10 @@ func mergeAttributes(dst pcommon.Map, sources ...pcommon.Map) {
 			case pcommon.ValueTypeMap:
 				m := dst.PutEmptyMap(k)
 				v.Map().MoveTo(m)
+			case pcommon.ValueTypeStr:
+				dst.PutStr(k, v.Str())
+			case pcommon.ValueTypeEmpty:
+				dst.PutEmpty(k)
 			case pcommon.ValueTypeSlice:
 				s := dst.PutEmptySlice(k)
 				v.Slice().MoveAndAppendTo(s)
