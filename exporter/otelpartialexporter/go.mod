@@ -5,6 +5,7 @@ go 1.24.0
 require (
 	github.com/G-Research/otel-partial-collector/internal/postgres v0.1.0
 	github.com/jackc/pgx/v5 v5.7.2
+	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.27.0
 	go.opentelemetry.io/collector/consumer v1.27.0
 	go.opentelemetry.io/collector/exporter v0.121.0
@@ -14,6 +15,7 @@ require (
 
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
@@ -28,6 +30,7 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	go.opentelemetry.io/collector/config/configretry v1.27.0 // indirect
 	go.opentelemetry.io/collector/confmap v1.27.0 // indirect
