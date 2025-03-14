@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/G-Research/otel-partial-collector/internal/postgres"
 	"github.com/jackc/pgx/v5"
@@ -28,7 +29,11 @@ var (
 )
 
 type Config struct {
+	// Postgres is URL used to connect to the postgres instance
 	Postgres string `mapstructure:"postgres"`
+	// ExpiryFactor multiplies the heartbeet interval with the ExpiryFactor
+	// to get the expiration time for the trace.
+	ExpiryFactor int `mapstructure:"expiry_factor"`
 }
 
 func defaultConfig() component.Config {
@@ -47,7 +52,8 @@ type otelPartialExporter struct {
 	exporter exporter.Logs
 	host     component.Host
 
-	db *postgres.DB
+	db           *postgres.DB
+	expiryFactor int
 
 	logger *zap.Logger
 
@@ -71,7 +77,7 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 	}
 
 	e.logger.Info("Consuming logs", zap.String("log", string(out)))
-
+	now := time.Now().UTC()
 	var errs []error
 	resourceLogs := logs.ResourceLogs()
 	for i := range resourceLogs.Len() {
@@ -84,11 +90,18 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 			for k := range records.Len() {
 				logRecord := records.At(k)
 				logAttrs := logRecord.Attributes()
-				value, ok := logAttrs.Get("partial.event")
-				if !ok {
+
+				eventType, err := getEventTypeFromAttributes(logAttrs)
+				if err != nil {
+					e.logger.Warn("Failed to resolve event type", zap.Error(err))
 					continue
 				}
-				val := value.Str()
+
+				interval, err := getHeartbeetIntervalFromAttributes(logAttrs)
+				if err != nil {
+					e.logger.Warn("Failed to resolve heartbeet frequency", zap.Error(err))
+					continue
+				}
 
 				rawTrace, err := base64.StdEncoding.DecodeString(logRecord.Body().AsString())
 				if err != nil {
@@ -101,8 +114,8 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 					return fmt.Errorf("failed to unmarshal traces: %v", err)
 				}
 
-				switch val {
-				case "heartbeat":
+				switch eventType {
+				case EventTypeHeartbeet:
 					for _, t := range flattenTraces(traces) {
 						mergeAttributes(t.ResourceSpans().At(0).Resource().Attributes(), resourceAttrs)
 						span := t.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
@@ -116,16 +129,18 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 						if err := e.db.PutTrace(
 							ctx,
 							&postgres.PartialTrace{
-								TraceID: span.TraceID().String(),
-								SpanID:  span.SpanID().String(),
-								Trace:   b,
+								TraceID:   span.TraceID().String(),
+								SpanID:    span.SpanID().String(),
+								Trace:     b,
+								Timestamp: now,
+								ExpiresAt: now.Add(interval * time.Duration(e.expiryFactor)),
 							},
 						); err != nil {
 							errs = append(errs, fmt.Errorf("failed to put trace: %w", err))
 							continue
 						}
 					}
-				case "stop":
+				case EventTypeStop:
 					for _, t := range flattenTraces(traces) {
 						span := t.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
 						if err := e.db.RemoveTrace(ctx, span.TraceID().String(), span.SpanID().String()); err != nil {
@@ -135,7 +150,8 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 					}
 
 				default:
-					e.logger.Error("Unknown attribute value", zap.String("partial.event", val))
+					// assertion
+					panic("unreachable")
 				}
 			}
 		}
@@ -152,8 +168,9 @@ func newPartialExporter(ctx context.Context, settings exporter.Settings, baseCfg
 	}
 
 	ex := &otelPartialExporter{
-		db:     db,
-		logger: settings.Logger,
+		db:           db,
+		expiryFactor: cfg.ExpiryFactor,
+		logger:       settings.Logger,
 	}
 
 	return exporterhelper.NewLogs(
@@ -216,6 +233,41 @@ func flattenTraces(traces ptrace.Traces) []ptrace.Traces {
 	}
 
 	return newTraces
+}
+
+type EventType int
+
+const (
+	EventTypeUnknown = iota
+	EventTypeHeartbeet
+	EventTypeStop
+)
+
+func getEventTypeFromAttributes(attrs pcommon.Map) (EventType, error) {
+	v, ok := attrs.Get("partial.event")
+	if !ok {
+		return EventTypeUnknown, fmt.Errorf("unknown event type: empty")
+	}
+	switch t := v.AsString(); t {
+	case "heartbeet":
+		return EventTypeHeartbeet, nil
+	case "stop":
+		return EventTypeStop, nil
+	default:
+		return EventTypeUnknown, fmt.Errorf("unknown event type: %q", t)
+	}
+}
+
+func getHeartbeetIntervalFromAttributes(attrs pcommon.Map) (time.Duration, error) {
+	freq, ok := attrs.Get("partial.frequency")
+	if !ok {
+		return 0, fmt.Errorf("frequency is not set")
+	}
+	d, err := time.ParseDuration(freq.AsString())
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse duration: %w", err)
+	}
+	return d, nil
 }
 
 func mergeAttributes(dst pcommon.Map, sources ...pcommon.Map) {
