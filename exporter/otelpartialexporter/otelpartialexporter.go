@@ -31,7 +31,7 @@ var (
 type Config struct {
 	// Postgres is URL used to connect to the postgres instance
 	Postgres string `mapstructure:"postgres"`
-	// ExpiryFactor multiplies the heartbeet interval with the ExpiryFactor
+	// ExpiryFactor multiplies the heartbeat interval with the ExpiryFactor
 	// to get the expiration time for the trace.
 	ExpiryFactor int `mapstructure:"expiry_factor"`
 }
@@ -99,7 +99,7 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 
 				interval, err := getHeartbeetIntervalFromAttributes(logAttrs)
 				if err != nil {
-					e.logger.Warn("Failed to resolve heartbeet frequency", zap.Error(err))
+					e.logger.Warn("Failed to resolve heartbeat frequency", zap.Error(err))
 					continue
 				}
 
@@ -249,7 +249,7 @@ func getEventTypeFromAttributes(attrs pcommon.Map) (EventType, error) {
 		return EventTypeUnknown, fmt.Errorf("unknown event type: empty")
 	}
 	switch t := v.AsString(); t {
-	case "heartbeet":
+	case "heartbeat":
 		return EventTypeHeartbeet, nil
 	case "stop":
 		return EventTypeStop, nil

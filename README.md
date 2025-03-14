@@ -18,8 +18,8 @@ Valid values for the `partial.event` attribute are:
 - `heartbeat`: This event stores the OTLP Trace serialized as protobuf into the database.
 - `stop`: This event removes the partial events associated with that trace from the database since the trace is already propagated using the trace pipeline.
 
-Each log should contain the `partial.frequency` attribute as well. This attribute is used to express the desired frequency for heartbeets sent for the trace.
-The frequency is multiplied with the `expiry_factor` to set the expiration time of the span. After each heartbeet, the `timestamp` and the `expires_at` fields
+Each log should contain the `partial.frequency` attribute as well. This attribute is used to express the desired frequency for heartbeats sent for the trace.
+The frequency is multiplied with the `expiry_factor` to set the expiration time of the span. After each heartbeat, the `timestamp` and the `expires_at` fields
 are updated by setting `timestamp` to `NOW`, and the `expires_at` to `NOW + (duration(frequency) * expiry_factor)`.
 
 This configuration parameter is configured on the exporter so proper indexing could be done. Then the whole job of the receiver is to collect the traces that
