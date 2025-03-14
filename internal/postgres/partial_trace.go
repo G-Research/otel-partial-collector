@@ -57,6 +57,7 @@ func (db *DB) ListExpiredTraces(ctx context.Context, timestamp time.Time) ([]*Pa
 	q := `
 SELECT trace_id, span_id, trace FROM partial_traces
 WHERE expires_at < $1
+FOR UPDATE
 	`
 
 	rows, err := db.Query(ctx, q, timestamp)
