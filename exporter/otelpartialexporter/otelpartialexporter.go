@@ -97,7 +97,7 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 					continue
 				}
 
-				interval, err := getHeartbeetIntervalFromAttributes(logAttrs)
+				interval, err := getHeartbeatIntervalFromAttributes(logAttrs)
 				if err != nil {
 					e.logger.Warn("Failed to resolve heartbeat frequency", zap.Error(err))
 					continue
@@ -115,7 +115,7 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 				}
 
 				switch eventType {
-				case EventTypeHeartbeet:
+				case EventTypeHeartbeat:
 					for _, t := range flattenTraces(traces) {
 						mergeAttributes(t.ResourceSpans().At(0).Resource().Attributes(), resourceAttrs)
 						span := t.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
@@ -239,7 +239,7 @@ type EventType int
 
 const (
 	EventTypeUnknown = iota
-	EventTypeHeartbeet
+	EventTypeHeartbeat
 	EventTypeStop
 )
 
@@ -250,7 +250,7 @@ func getEventTypeFromAttributes(attrs pcommon.Map) (EventType, error) {
 	}
 	switch t := v.AsString(); t {
 	case "heartbeat":
-		return EventTypeHeartbeet, nil
+		return EventTypeHeartbeat, nil
 	case "stop":
 		return EventTypeStop, nil
 	default:
@@ -258,7 +258,7 @@ func getEventTypeFromAttributes(attrs pcommon.Map) (EventType, error) {
 	}
 }
 
-func getHeartbeetIntervalFromAttributes(attrs pcommon.Map) (time.Duration, error) {
+func getHeartbeatIntervalFromAttributes(attrs pcommon.Map) (time.Duration, error) {
 	freq, ok := attrs.Get("partial.frequency")
 	if !ok {
 		return 0, fmt.Errorf("frequency is not set")
