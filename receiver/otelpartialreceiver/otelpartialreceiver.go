@@ -27,12 +27,12 @@ var (
 )
 
 type Config struct {
-	Postgres    string `mapstructure:"postgres"`
-	GCThreshold string `mapstructure:"gc_threshold"`
+	Postgres   string `mapstructure:"postgres"`
+	GCInterval string `mapstructure:"gc_interval"`
 }
 
 func (c *Config) Validate() error {
-	if _, err := time.ParseDuration(c.GCThreshold); err != nil {
+	if _, err := time.ParseDuration(c.GCInterval); err != nil {
 		return fmt.Errorf("failed to parse interval duration: %v", err)
 	}
 	return nil
@@ -40,15 +40,15 @@ func (c *Config) Validate() error {
 
 func defaultConfig() component.Config {
 	return &Config{
-		GCThreshold: "24h",
+		GCInterval: "5s",
 	}
 }
 
 type otelPartialReceiver struct {
-	consumer    consumer.Traces
-	db          *postgres.DB
-	gcThreshold time.Duration
-	host        component.Host
+	consumer   consumer.Traces
+	db         *postgres.DB
+	gcInterval time.Duration
+	host       component.Host
 
 	logger *zap.Logger
 
@@ -63,16 +63,16 @@ func newPartialReceiver(ctx context.Context, params receiver.Settings, baseCfg c
 		return nil, fmt.Errorf("failed to create new db connection: %v", err)
 	}
 
-	d, err := time.ParseDuration(cfg.GCThreshold)
+	d, err := time.ParseDuration(cfg.GCInterval)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse duration interval")
 	}
 
 	r := &otelPartialReceiver{
-		db:          db,
-		logger:      params.Logger,
-		gcThreshold: d,
-		consumer:    consumer,
+		db:         db,
+		logger:     params.Logger,
+		gcInterval: d,
+		consumer:   consumer,
 	}
 
 	return r, nil
@@ -84,7 +84,7 @@ func (r *otelPartialReceiver) Start(rootCtx context.Context, host component.Host
 	r.doneCh = make(chan struct{})
 	r.host = host
 
-	r.logger.Info("Starting gc loop", zap.String("gc_threshold", r.gcThreshold.String()))
+	r.logger.Info("Starting gc loop", zap.String("gc_threshold", r.gcInterval.String()))
 	go r.loop(ctx)
 
 	return rootCtx.Err()
@@ -103,14 +103,13 @@ func (r *otelPartialReceiver) Shutdown(ctx context.Context) error {
 
 func (r *otelPartialReceiver) loop(ctx context.Context) {
 	for {
-		// between 30 and 50 seconds
-		jitter := rand.Intn(20)
+		jitter := time.Millisecond * time.Duration(rand.Intn(1000)-500) // [-500ms,499ms]
 		select {
 		case <-ctx.Done():
 			r.logger.Info("Stopping gc loop after shutdown")
 			close(r.doneCh)
 			return
-		case <-time.After(time.Duration(30+jitter) * time.Second):
+		case <-time.After(r.gcInterval + jitter):
 			if err := r.gc(ctx); err != nil {
 				r.logger.Error("encountered errors while running gc", zap.Error(err))
 			}
@@ -119,9 +118,7 @@ func (r *otelPartialReceiver) loop(ctx context.Context) {
 }
 
 func (c *otelPartialReceiver) gc(ctx context.Context) error {
-	now := time.Now()
-	targetTimestamp := now.Add(-c.gcThreshold)
-
+	now := time.Now().UTC()
 	var errs []error
 	if err := c.db.Transact(
 		ctx,
@@ -131,11 +128,11 @@ func (c *otelPartialReceiver) gc(ctx context.Context) error {
 			DeferrableMode: pgx.NotDeferrable,
 		},
 		func(ctx context.Context, db *postgres.DB) error {
-			c.logger.Info("Collecting traces", zap.String("older_than", targetTimestamp.String()))
+			c.logger.Info("Collecting traces")
 
-			traces, err := db.GetTracesOlderThan(ctx, targetTimestamp)
+			traces, err := db.ListExpiredTraces(ctx, now)
 			if err != nil {
-				return fmt.Errorf("failed to get traces older than %v: %v", targetTimestamp, err)
+				return fmt.Errorf("failed to get expired traces: %w", err)
 			}
 
 			c.logger.Info("Number of traces to collect", zap.Int("count", len(traces)))

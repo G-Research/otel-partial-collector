@@ -10,17 +10,19 @@ type PartialTrace struct {
 	TraceID string
 	SpanID  string
 	// Marshalled trace to byte slice
-	Trace []byte
+	Trace     []byte
+	Timestamp time.Time
+	ExpiresAt time.Time
 }
 
 func (db *DB) PutTrace(ctx context.Context, partialTrace *PartialTrace) error {
 	q := `
 INSERT INTO partial_traces
-(trace_id, span_id, trace, timestamp)
+(trace_id, span_id, trace, timestamp, expires_at)
 VALUES
-($1, $2, $3, NOW())
+($1, $2, $3, $4, $5)
 ON CONFLICT (trace_id, span_id) DO UPDATE
-SET trace = $3, timestamp = NOW()
+SET trace = $3, timestamp = $4, expires_at = $5
 `
 
 	if _, err := db.Exec(
@@ -29,6 +31,8 @@ SET trace = $3, timestamp = NOW()
 		partialTrace.TraceID,
 		partialTrace.SpanID,
 		partialTrace.Trace,
+		partialTrace.Timestamp,
+		partialTrace.ExpiresAt,
 	); err != nil {
 		return fmt.Errorf("failed to insert partial span: %w", err)
 	}
@@ -49,10 +53,11 @@ WHERE trace_id = $1 AND span_id = $2
 	return nil
 }
 
-func (db *DB) GetTracesOlderThan(ctx context.Context, timestamp time.Time) ([]*PartialTrace, error) {
+func (db *DB) ListExpiredTraces(ctx context.Context, timestamp time.Time) ([]*PartialTrace, error) {
 	q := `
 SELECT trace_id, span_id, trace FROM partial_traces
-WHERE timestamp < $1
+WHERE expires_at < $1
+FOR UPDATE SKIP LOCKED
 	`
 
 	rows, err := db.Query(ctx, q, timestamp)
