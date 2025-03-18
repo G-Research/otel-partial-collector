@@ -14,22 +14,19 @@ import (
 
 	"github.com/G-Research/otel-partial-collector/internal/postgres"
 	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
-
-	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-var (
-	protoMarshaller   ptrace.ProtoMarshaler
-	protoUnmarshaller ptrace.ProtoUnmarshaler
-)
+var protoMarshaller ptrace.ProtoMarshaler
 
 type TestSuite struct {
 	suite.Suite
@@ -59,7 +56,7 @@ func (hs *TestSuite) SetupSuite() {
 	migrationDir, err := migrationDir()
 	require.NoError(t, err, "failed to find migration directory")
 
-	err = tp.Migration(ctx, migrationDir)
+	err = tp.Migration(migrationDir)
 	require.NoError(t, err, "failed to run migration")
 
 	hs.tp.db, err = postgres.NewDB(ctx, cfg.DBConnStr())
@@ -75,20 +72,20 @@ func (hs *TestSuite) releaseDB() {
 	hs.tp.mu.Unlock()
 }
 
-func (tp *TestPostgres) Migration(ctx context.Context, dir string) error {
+func (tp *TestPostgres) Migration(dir string) error {
 	absPath, err := filepath.Abs(dir)
 	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %v", err)
+		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
 	d := "file://" + absPath
 	m, err := migrate.New(d, tp.cfg.MigrationConnStr())
 	if err != nil {
-		return fmt.Errorf("failed to create migration on conn %q: %v", tp.cfg.MigrationConnStr(), err)
+		return fmt.Errorf("failed to create migration on conn %q: %w", tp.cfg.MigrationConnStr(), err)
 	}
 	defer m.Close()
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to run migration: %v", err)
+		return fmt.Errorf("failed to run migration: %w", err)
 	}
 
 	return nil
@@ -97,7 +94,7 @@ func (tp *TestPostgres) Migration(ctx context.Context, dir string) error {
 func migrationDir() (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("failed to get working directory: %v", err)
+		return "", fmt.Errorf("failed to get working directory: %w", err)
 	}
 
 	return filepath.Clean(path.Join(wd, "migrations")), nil
@@ -130,7 +127,7 @@ type TestPostgres struct {
 }
 
 func NewTestPostgres(ctx context.Context, cfg InstanceConfig) (*TestPostgres, error) {
-	port := fmt.Sprintf("%s:5432/tcp", cfg.Port)
+	port := cfg.Port + ":5432/tcp"
 	cr := testcontainers.ContainerRequest{
 		Image: "postgres:17-bookworm",
 		Env: map[string]string{
@@ -149,7 +146,7 @@ func NewTestPostgres(ctx context.Context, cfg InstanceConfig) (*TestPostgres, er
 		Started:          true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to start postgres container: %v", err)
+		return nil, fmt.Errorf("failed to start postgres container: %w", err)
 	}
 
 	return &TestPostgres{

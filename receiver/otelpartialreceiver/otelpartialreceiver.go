@@ -4,27 +4,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"time"
 
-	"github.com/G-Research/otel-partial-collector/internal/postgres"
-	"github.com/jackc/pgx/v5"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/receiver"
+
+	"github.com/G-Research/otel-partial-collector/internal/postgres"
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
 var typeStr = component.MustNewType("otelpartialreceiver")
 
-var (
-	logsJSONMarshaler      plog.JSONMarshaler
-	tracesProtoUnmarshaler ptrace.ProtoUnmarshaler
-	tracesProtoMarshaler   ptrace.ProtoMarshaler
-)
+var tracesProtoUnmarshaler ptrace.ProtoUnmarshaler
 
 type Config struct {
 	Postgres   string `mapstructure:"postgres"`
@@ -33,7 +29,7 @@ type Config struct {
 
 func (c *Config) Validate() error {
 	if _, err := time.ParseDuration(c.GCInterval); err != nil {
-		return fmt.Errorf("failed to parse interval duration: %v", err)
+		return fmt.Errorf("failed to parse interval duration: %w", err)
 	}
 	return nil
 }
@@ -60,12 +56,12 @@ func newPartialReceiver(ctx context.Context, params receiver.Settings, baseCfg c
 	cfg := baseCfg.(*Config)
 	db, err := postgres.NewDB(ctx, cfg.Postgres)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new db connection: %v", err)
+		return nil, fmt.Errorf("failed to create new db connection: %w", err)
 	}
 
 	d, err := time.ParseDuration(cfg.GCInterval)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse duration interval")
+		return nil, fmt.Errorf("failed to parse duration interval: %w", err)
 	}
 
 	r := &otelPartialReceiver{
@@ -90,7 +86,7 @@ func (r *otelPartialReceiver) Start(rootCtx context.Context, host component.Host
 	return rootCtx.Err()
 }
 
-func (r *otelPartialReceiver) Shutdown(ctx context.Context) error {
+func (r *otelPartialReceiver) Shutdown(context.Context) error {
 	r.logger.Info("Shutting down receiver")
 	if r.cancelFunc != nil {
 		r.cancelFunc()
@@ -98,12 +94,12 @@ func (r *otelPartialReceiver) Shutdown(ctx context.Context) error {
 		<-r.doneCh
 		r.logger.Info("GC loop done")
 	}
-	return r.db.Close(ctx)
+	return r.db.Close()
 }
 
 func (r *otelPartialReceiver) loop(ctx context.Context) {
 	for {
-		jitter := time.Millisecond * time.Duration(rand.Intn(1000)-500) // [-500ms,499ms]
+		jitter := time.Millisecond * time.Duration(rand.IntN(1000)-500) // [-500ms,499ms]
 		select {
 		case <-ctx.Done():
 			r.logger.Info("Stopping gc loop after shutdown")
@@ -117,10 +113,10 @@ func (r *otelPartialReceiver) loop(ctx context.Context) {
 	}
 }
 
-func (c *otelPartialReceiver) gc(ctx context.Context) error {
+func (r *otelPartialReceiver) gc(ctx context.Context) error {
 	now := time.Now().UTC()
 	var errs []error
-	if err := c.db.Transact(
+	if err := r.db.Transact(
 		ctx,
 		pgx.TxOptions{
 			IsoLevel:       pgx.Serializable,
@@ -128,14 +124,14 @@ func (c *otelPartialReceiver) gc(ctx context.Context) error {
 			DeferrableMode: pgx.NotDeferrable,
 		},
 		func(ctx context.Context, db *postgres.DB) error {
-			c.logger.Info("Collecting traces")
+			r.logger.Info("Collecting traces")
 
 			traces, err := db.ListExpiredTraces(ctx, now)
 			if err != nil {
 				return fmt.Errorf("failed to get expired traces: %w", err)
 			}
 
-			c.logger.Info("Number of traces to collect", zap.Int("count", len(traces)))
+			r.logger.Info("Number of traces to collect", zap.Int("count", len(traces)))
 
 			for _, pt := range traces {
 				trace, err := tracesProtoUnmarshaler.UnmarshalTraces(pt.Trace)
@@ -149,13 +145,13 @@ func (c *otelPartialReceiver) gc(ctx context.Context) error {
 				attrs := span.Attributes()
 				attrs.PutBool("partial.gc", true)
 
-				if err := c.consumer.ConsumeTraces(ctx, trace); err != nil {
+				if err := r.consumer.ConsumeTraces(ctx, trace); err != nil {
 					errs = append(errs, fmt.Errorf("failed to consume trace %v: %w", trace, err))
 					continue
 				}
 
 				if err := db.RemoveTrace(ctx, pt.TraceID, pt.SpanID); err != nil {
-					errs = append(errs, fmt.Errorf("failed to rmeove trace: %v", err))
+					errs = append(errs, fmt.Errorf("failed to rmeove trace: %w", err))
 					continue
 				}
 			}

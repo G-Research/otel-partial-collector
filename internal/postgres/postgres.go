@@ -21,11 +21,11 @@ type DB struct {
 func NewDB(ctx context.Context, conn string) (*DB, error) {
 	pool, err := pgxpool.New(ctx, conn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new pgx pool: %v", err)
+		return nil, fmt.Errorf("failed to create new pgx pool: %w", err)
 	}
 
 	if err := pool.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("failed to ping the database: %v", err)
+		return nil, fmt.Errorf("failed to ping the database: %w", err)
 	}
 
 	return &DB{
@@ -33,9 +33,9 @@ func NewDB(ctx context.Context, conn string) (*DB, error) {
 	}, nil
 }
 
-func (db *DB) Close(ctx context.Context) error {
+func (db *DB) Close() error {
 	if db.pool == nil {
-		return fmt.Errorf("pool is nil")
+		return errors.New("pool is nil")
 	}
 	db.pool.Close()
 	return nil
@@ -90,7 +90,9 @@ func (db *DB) transact(ctx context.Context, opts pgx.TxOptions, f func(ctx conte
 		return err
 	}
 
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	err = f(ctx, &DB{tx: tx})
 	if err != nil {
