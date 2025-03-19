@@ -9,33 +9,47 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
-  fmt:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      - name: fmt exporter
-        run: cd exporter/otelpartialexporter && gofmt -s -w .
-      - name: fmt receiver
-        run: cd receiver/otelpartialreceiver && gofmt -s -w .
-      - name: fmt internal
-        run: cd internal/postgres && gofmt -s -w .
-      - name: Check diff
-        run: git diff --exit-code
-  
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
           cache: false
-      - name: golangci-lint
+      - name: golangci-lint exporter
         uses: golangci/golangci-lint-action@v6
         with:
-          only-new-issues: true
           version: v1.64.7
+          working-directory: exporter/otelpartialexporter
+          args: --config=../../.golangci.yaml
+
+      - name: golangci-lint receiver
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.7
+          working-directory: receiver/otelpartialreceiver
+          args: --config=../../.golangci.yaml
+
+      - name: golangci-lint postgres
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.7
+          working-directory: internal/postgres
+          args: --config=../../.golangci.yaml
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+          cache: false
+      - name: run tests
+        run: ./hack/tests.sh
