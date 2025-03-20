@@ -244,7 +244,7 @@ const (
 func getEventTypeFromAttributes(attrs pcommon.Map) (EventType, error) {
 	v, ok := attrs.Get("partial.event")
 	if !ok {
-		return EventTypeUnknown, fmt.Errorf("unknown event type: empty")
+		return EventTypeUnknown, errors.New("unknown event type: empty")
 	}
 	switch t := v.AsString(); t {
 	case "heartbeat":
@@ -259,7 +259,7 @@ func getEventTypeFromAttributes(attrs pcommon.Map) (EventType, error) {
 func getHeartbeatIntervalFromAttributes(attrs pcommon.Map) (time.Duration, error) {
 	freq, ok := attrs.Get("partial.frequency")
 	if !ok {
-		return 0, fmt.Errorf("frequency is not set")
+		return 0, errors.New("frequency is not set")
 	}
 	d, err := time.ParseDuration(freq.AsString())
 	if err != nil {

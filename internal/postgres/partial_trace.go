@@ -9,7 +9,7 @@ import (
 type PartialTrace struct {
 	TraceID string
 	SpanID  string
-	// Marshalled trace to byte slice
+	// Marshaled trace to byte slice
 	Trace     []byte
 	Timestamp time.Time
 	ExpiresAt time.Time
