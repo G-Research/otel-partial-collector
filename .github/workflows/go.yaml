@@ -27,21 +27,18 @@ jobs:
         with:
           version: v1.64.7
           working-directory: exporter/otelpartialexporter
-          args: --config=../../.golangci.yaml
 
       - name: golangci-lint receiver
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.64.7
           working-directory: receiver/otelpartialreceiver
-          args: --config=../../.golangci.yaml
 
       - name: golangci-lint postgres
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.64.7
           working-directory: internal/postgres
-          args: --config=../../.golangci.yaml
 
   test:
     runs-on: ubuntu-latest
