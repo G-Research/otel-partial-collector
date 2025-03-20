@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/G-Research/otel-partial-collector/internal/postgres"
-	"github.com/jackc/pgx/v5"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/exporter"
@@ -17,6 +15,9 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/ptrace"
+
+	"github.com/G-Research/otel-partial-collector/internal/postgres"
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
@@ -42,16 +43,13 @@ func defaultConfig() component.Config {
 
 func (c *Config) Validate() error {
 	if _, err := pgx.ParseConfig(c.Postgres); err != nil {
-		return fmt.Errorf("invalid postgres config: %v", err)
+		return fmt.Errorf("invalid postgres config: %w", err)
 	}
 
 	return nil
 }
 
 type otelPartialExporter struct {
-	exporter exporter.Logs
-	host     component.Host
-
 	db           *postgres.DB
 	expiryFactor int
 
@@ -61,12 +59,12 @@ type otelPartialExporter struct {
 	component.StartFunc
 }
 
-func (e *otelPartialExporter) Shutdown(ctx context.Context) error {
+func (e *otelPartialExporter) Shutdown(context.Context) error {
 	e.logger.Info("Shutting down otel partial exporter")
 	if e.cancelFunc != nil {
 		e.cancelFunc()
 	}
-	return e.db.Close(ctx)
+	return e.db.Close()
 }
 
 func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) error {
@@ -111,7 +109,7 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 
 				traces, err := tracesProtoUnmarshaler.UnmarshalTraces(rawTrace)
 				if err != nil {
-					return fmt.Errorf("failed to unmarshal traces: %v", err)
+					return fmt.Errorf("failed to unmarshal traces: %w", err)
 				}
 
 				switch eventType {
@@ -164,7 +162,7 @@ func newPartialExporter(ctx context.Context, settings exporter.Settings, baseCfg
 	cfg := baseCfg.(*Config)
 	db, err := postgres.NewDB(ctx, cfg.Postgres)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new db connection: %v", err)
+		return nil, fmt.Errorf("failed to create new db connection: %w", err)
 	}
 
 	ex := &otelPartialExporter{
@@ -246,7 +244,7 @@ const (
 func getEventTypeFromAttributes(attrs pcommon.Map) (EventType, error) {
 	v, ok := attrs.Get("partial.event")
 	if !ok {
-		return EventTypeUnknown, fmt.Errorf("unknown event type: empty")
+		return EventTypeUnknown, errors.New("unknown event type: empty")
 	}
 	switch t := v.AsString(); t {
 	case "heartbeat":
@@ -261,7 +259,7 @@ func getEventTypeFromAttributes(attrs pcommon.Map) (EventType, error) {
 func getHeartbeatIntervalFromAttributes(attrs pcommon.Map) (time.Duration, error) {
 	freq, ok := attrs.Get("partial.frequency")
 	if !ok {
-		return 0, fmt.Errorf("frequency is not set")
+		return 0, errors.New("frequency is not set")
 	}
 	d, err := time.ParseDuration(freq.AsString())
 	if err != nil {

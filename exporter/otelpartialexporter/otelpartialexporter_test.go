@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"go.opentelemetry.io/collector/pdata/pcommon"
 )
 
@@ -72,7 +73,7 @@ func TestMergeAttributes(t *testing.T) {
 	assert.False(t, ok)
 
 	for k, v := range appliedPrimitiveAttributes {
-		val, ok := dst.Get(k)
+		val, ok = dst.Get(k)
 		assert.True(t, ok)
 		assert.Equal(t, v, val.AsRaw())
 	}

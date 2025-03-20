@@ -9,7 +9,7 @@ import (
 type PartialTrace struct {
 	TraceID string
 	SpanID  string
-	// Marshalled trace to byte slice
+	// Marshaled trace to byte slice
 	Trace     []byte
 	Timestamp time.Time
 	ExpiresAt time.Time
@@ -62,7 +62,7 @@ FOR UPDATE SKIP LOCKED
 
 	rows, err := db.Query(ctx, q, timestamp)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query traces")
+		return nil, fmt.Errorf("failed to query traces: %w", err)
 	}
 	defer rows.Close()
 
@@ -70,7 +70,7 @@ FOR UPDATE SKIP LOCKED
 	for rows.Next() {
 		var trace PartialTrace
 		if err := rows.Scan(&trace.TraceID, &trace.SpanID, &trace.Trace); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %v", err)
+			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		traces = append(traces, &trace)
 	}
