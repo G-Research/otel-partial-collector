@@ -3,12 +3,12 @@ module github.com/G-Research/otel-partial-collector/receiver/otelpartialreceiver
 go 1.24.0
 
 require (
-	github.com/G-Research/otel-partial-collector/internal/postgres v0.1.0
+	github.com/G-Research/otel-partial-collector/internal/postgres v0.2.0
 	github.com/jackc/pgx/v5 v5.7.2
-	go.opentelemetry.io/collector/component v1.27.0
-	go.opentelemetry.io/collector/consumer v1.27.0
-	go.opentelemetry.io/collector/pdata v1.27.0
-	go.opentelemetry.io/collector/receiver v0.121.0
+	go.opentelemetry.io/collector/component v1.28.1
+	go.opentelemetry.io/collector/consumer v1.28.1
+	go.opentelemetry.io/collector/pdata v1.28.1
+	go.opentelemetry.io/collector/receiver v1.28.1
 	go.uber.org/zap v1.27.0
 )
 
@@ -20,7 +20,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	go.opentelemetry.io/collector/pipeline v0.121.0 // indirect
+	go.opentelemetry.io/collector/pipeline v0.122.1 // indirect
 	go.opentelemetry.io/otel v1.35.0 // indirect
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
@@ -30,7 +30,7 @@ require (
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250313205543-e70fdf4c4cb4 // indirect
 	google.golang.org/grpc v1.71.0 // indirect
 	google.golang.org/protobuf v1.36.5 // indirect
 )
