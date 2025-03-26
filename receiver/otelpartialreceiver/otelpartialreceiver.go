@@ -124,14 +124,16 @@ func (r *otelPartialReceiver) gc(ctx context.Context) error {
 			DeferrableMode: pgx.NotDeferrable,
 		},
 		func(ctx context.Context, db *postgres.DB) error {
-			r.logger.Info("Collecting traces")
+			r.logger.Debug("Collecting traces")
 
 			traces, err := db.ListExpiredTraces(ctx, now)
 			if err != nil {
 				return fmt.Errorf("failed to get expired traces: %w", err)
 			}
 
-			r.logger.Info("Number of traces to collect", zap.Int("count", len(traces)))
+			if len(traces) > 0 {
+				r.logger.Info("Number of traces to collect", zap.Int("count", len(traces)))
+			}
 
 			for _, pt := range traces {
 				trace, err := tracesProtoUnmarshaler.UnmarshalTraces(pt.Trace)
