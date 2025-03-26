@@ -17,7 +17,6 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
 	"github.com/G-Research/otel-partial-collector/internal/postgres"
-	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
@@ -28,26 +27,6 @@ var (
 	tracesProtoUnmarshaler ptrace.ProtoUnmarshaler
 	tracesProtoMarshaler   ptrace.ProtoMarshaler
 )
-
-type Config struct {
-	// Postgres is URL used to connect to the postgres instance
-	Postgres string `mapstructure:"postgres"`
-	// ExpiryFactor multiplies the heartbeat interval with the ExpiryFactor
-	// to get the expiration time for the trace.
-	ExpiryFactor int `mapstructure:"expiry_factor"`
-}
-
-func defaultConfig() component.Config {
-	return &Config{}
-}
-
-func (c *Config) Validate() error {
-	if _, err := pgx.ParseConfig(c.Postgres); err != nil {
-		return fmt.Errorf("invalid postgres config: %w", err)
-	}
-
-	return nil
-}
 
 type otelPartialExporter struct {
 	db           *postgres.DB
@@ -183,7 +162,7 @@ func newPartialExporter(ctx context.Context, settings exporter.Settings, baseCfg
 func NewFactory() exporter.Factory {
 	return exporter.NewFactory(
 		typeStr,
-		defaultConfig,
+		createDefaultConfig,
 		exporter.WithLogs(
 			newPartialExporter,
 			component.StabilityLevelAlpha,

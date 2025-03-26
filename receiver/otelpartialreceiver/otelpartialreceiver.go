@@ -22,24 +22,6 @@ var typeStr = component.MustNewType("otelpartialreceiver")
 
 var tracesProtoUnmarshaler ptrace.ProtoUnmarshaler
 
-type Config struct {
-	Postgres   string `mapstructure:"postgres"`
-	GCInterval string `mapstructure:"gc_interval"`
-}
-
-func (c *Config) Validate() error {
-	if _, err := time.ParseDuration(c.GCInterval); err != nil {
-		return fmt.Errorf("failed to parse interval duration: %w", err)
-	}
-	return nil
-}
-
-func defaultConfig() component.Config {
-	return &Config{
-		GCInterval: "5s",
-	}
-}
-
 type otelPartialReceiver struct {
 	consumer   consumer.Traces
 	db         *postgres.DB
@@ -167,7 +149,7 @@ func (r *otelPartialReceiver) gc(ctx context.Context) error {
 func NewFactory() receiver.Factory {
 	return receiver.NewFactory(
 		typeStr,
-		defaultConfig,
+		createDefaultConfig,
 		receiver.WithTraces(
 			newPartialReceiver,
 			component.StabilityLevelAlpha,
