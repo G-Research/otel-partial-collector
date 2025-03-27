@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+
 	"go.opentelemetry.io/collector/component"
 )
 
@@ -27,7 +28,7 @@ func (c *Config) Validate() error {
 	}
 
 	if c.ExpiryFactor <= 0 {
-		return errors.New("Expiry factor cannot be less than or equal to 0")
+		return errors.New("expiry factor cannot be less than or equal to 0")
 	}
 
 	return nil
