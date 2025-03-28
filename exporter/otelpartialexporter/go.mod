@@ -35,6 +35,7 @@ require (
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	go.opentelemetry.io/collector/config/configretry v1.28.1 // indirect
 	go.opentelemetry.io/collector/confmap v1.28.1 // indirect
+	go.opentelemetry.io/collector/confmap/xconfmap v0.122.1 // indirect
 	go.opentelemetry.io/collector/consumer/consumererror v0.122.1 // indirect
 	go.opentelemetry.io/collector/extension v1.28.1 // indirect
 	go.opentelemetry.io/collector/extension/xextension v0.122.1 // indirect

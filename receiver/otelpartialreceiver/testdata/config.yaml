@@ -1,0 +1,3 @@
+otelpartialreceiver:
+  postgres: "postgres://postgres:test@127.0.0.1:40444/otelpartialcollector?sslmode=disable"
+  gc_interval: "10s"

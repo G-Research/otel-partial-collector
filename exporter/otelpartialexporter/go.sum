@@ -155,6 +155,8 @@ go.opentelemetry.io/collector/confmap v1.27.0 h1:OIjPcjij1NxkVQsQVmHro4+t1eYNFiU
 go.opentelemetry.io/collector/confmap v1.27.0/go.mod h1:tmOa6iw3FJsEgfBHKALqvcdfRtf71JZGor0wSM5MoH8=
 go.opentelemetry.io/collector/confmap v1.28.1 h1:/zUmvpnERhFXrxVCVgubjJRgeOwdPbhTfUILZPUBfyw=
 go.opentelemetry.io/collector/confmap v1.28.1/go.mod h1:2aJggo/KQl7uynFyMNNMbl7jvKkSD7CniOVEpCbjRng=
+go.opentelemetry.io/collector/confmap/xconfmap v0.122.1 h1:E8sdJens/sq+evv/VHzbDP3B28uZIAPkKjtB4mVVTso=
+go.opentelemetry.io/collector/confmap/xconfmap v0.122.1/go.mod h1:33HDN5uVKRihgLiShZZDzxN0qiTA1+t8hK41rrf1jls=
 go.opentelemetry.io/collector/consumer v1.27.0 h1:JoXdoCeFDJG3d9TYrKHvTT4eBhzKXDVTkWW5mDfnLiY=
 go.opentelemetry.io/collector/consumer v1.27.0/go.mod h1:1B/+kTDUI6u3mCIOAkm5ityIpv5uC0Ll78IA50SNZ24=
 go.opentelemetry.io/collector/consumer v1.28.1 h1:3lHW2e0i7kEkbDqK1vErA8illqPpwDxMzgc5OUDsJ0Y=
