@@ -95,12 +95,6 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 					continue
 				}
 
-				interval, err := getHeartbeatIntervalFromAttributes(logAttrs)
-				if err != nil {
-					e.logger.Warn("Failed to resolve heartbeat frequency", zap.Error(err))
-					continue
-				}
-
 				rawTrace, err := base64.StdEncoding.DecodeString(logRecord.Body().AsString())
 				if err != nil {
 					e.logger.Error("failed to base64 decode trace", zap.Error(err))
@@ -114,6 +108,13 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 
 				switch eventType {
 				case EventTypeHeartbeat:
+					// if heartbeat, get the frequency
+					interval, err := getHeartbeatIntervalFromAttributes(logAttrs)
+					if err != nil {
+						e.logger.Warn("Failed to resolve heartbeat frequency", zap.Error(err))
+						continue
+					}
+
 					for _, t := range flattenTraces(traces) {
 						mergeAttributes(t.ResourceSpans().At(0).Resource().Attributes(), resourceAttrs)
 						span := t.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
