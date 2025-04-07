@@ -3,7 +3,7 @@ module github.com/G-Research/otel-partial-collector/receiver/otelpartialreceiver
 go 1.24.0
 
 require (
-	github.com/G-Research/otel-partial-collector/internal/postgres v0.2.0
+	github.com/G-Research/otel-partial-collector/internal/postgres v0.3.0
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.28.1
