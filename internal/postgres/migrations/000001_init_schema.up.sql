@@ -1,7 +1,6 @@
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', 'public', false);
@@ -21,9 +20,6 @@ CREATE TABLE partial_traces (
     "timestamp" timestamp with time zone DEFAULT now() NOT NULL,
     "expires_at" timestamp with time zone NOT NULL
 );
-
-
-ALTER TABLE partial_traces OWNER TO postgres;
 
 ALTER TABLE ONLY partial_traces
     ADD CONSTRAINT partial_traces_pkey PRIMARY KEY (span_id, trace_id);
