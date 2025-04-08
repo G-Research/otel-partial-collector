@@ -21,9 +21,6 @@ CREATE TABLE partial_traces (
     "expires_at" timestamp with time zone NOT NULL
 );
 
-
-ALTER TABLE partial_traces OWNER TO postgres;
-
 ALTER TABLE ONLY partial_traces
     ADD CONSTRAINT partial_traces_pkey PRIMARY KEY (span_id, trace_id);
 
