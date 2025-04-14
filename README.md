@@ -6,7 +6,7 @@ Repository contains two components that are intended to scale separately.
 2. Otel Partial Receiver
 
 Both of these components connect to the same Postgresql database. The exporter is responsible for writing/removing partial traces, while the receiver
-is responsible for sending partial traces through the pipeline when partial span is not received for the `gc_threshold` duration.
+is responsible for sending partial traces through the pipeline when partial span should be collected.
 
 ## Otel Partial Exporter
 
