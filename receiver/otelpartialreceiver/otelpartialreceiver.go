@@ -62,7 +62,7 @@ func (r *otelPartialReceiver) Start(rootCtx context.Context, host component.Host
 	r.doneCh = make(chan struct{})
 	r.host = host
 
-	r.logger.Info("Starting gc loop", zap.String("gc_threshold", r.gcInterval.String()))
+	r.logger.Info("Starting gc loop", zap.String("gc_interval", r.gcInterval.String()))
 	go r.loop(ctx)
 
 	return rootCtx.Err()
