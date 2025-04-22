@@ -23,7 +23,6 @@ import (
 var typeStr = component.MustNewType("otelpartialexporter")
 
 var (
-	logsJSONMarshaler      plog.JSONMarshaler
 	tracesProtoUnmarshaler ptrace.ProtoUnmarshaler
 	tracesProtoMarshaler   ptrace.ProtoMarshaler
 )
