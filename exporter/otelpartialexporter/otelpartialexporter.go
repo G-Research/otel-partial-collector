@@ -47,13 +47,6 @@ func (e *otelPartialExporter) Shutdown(context.Context) error {
 }
 
 func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) error {
-	// TODO: maybe check the level and use debug log here
-	out, err := logsJSONMarshaler.MarshalLogs(logs)
-	if err != nil {
-		return err
-	}
-
-	e.logger.Info("Consuming logs", zap.String("log", string(out)))
 	now := time.Now().UTC()
 	var errs []error
 	resourceLogs := logs.ResourceLogs()
