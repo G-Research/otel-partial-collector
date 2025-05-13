@@ -23,9 +23,27 @@ import (
 var typeStr = component.MustNewType("otelpartialexporter")
 
 var (
-	tracesProtoUnmarshaler ptrace.ProtoUnmarshaler
+	tracesProtoUnmarshaler base64ProtoUnmarshaler
 	tracesProtoMarshaler   ptrace.ProtoMarshaler
+	tracesJSONUnmarshaler  ptrace.JSONUnmarshaler
 )
+
+type base64ProtoUnmarshaler struct{}
+
+func (*base64ProtoUnmarshaler) UnmarshalTraces(buf []byte) (ptrace.Traces, error) {
+	rawTrace, err := base64.StdEncoding.DecodeString(string(buf))
+	if err != nil {
+		return ptrace.Traces{}, fmt.Errorf("failed to base64 decode: %v", err)
+	}
+
+	var u ptrace.ProtoUnmarshaler
+	traces, err := u.UnmarshalTraces(rawTrace)
+	if err != nil {
+		return ptrace.Traces{}, fmt.Errorf("failed to unmarshal traces: %w", err)
+	}
+
+	return traces, nil
+}
 
 type otelPartialExporter struct {
 	db           *postgres.DB
@@ -55,7 +73,6 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 		scopeLogs := resourceLog.ScopeLogs()
 		for j := range scopeLogs.Len() {
 			records := scopeLogs.At(j).LogRecords()
-
 			for k := range records.Len() {
 				logRecord := records.At(k)
 				logAttrs := logRecord.Attributes()
@@ -66,13 +83,13 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 					continue
 				}
 
-				rawTrace, err := base64.StdEncoding.DecodeString(logRecord.Body().AsString())
-				if err != nil {
-					e.logger.Error("failed to base64 decode trace", zap.Error(err))
+				unmarshaler, ok := getUnmrashaler(logAttrs)
+				if !ok {
+					e.logger.Warn("Failed to resolve unmarshaler type")
 					continue
 				}
 
-				traces, err := tracesProtoUnmarshaler.UnmarshalTraces(rawTrace)
+				traces, err := unmarshaler.UnmarshalTraces([]byte(logRecord.Body().AsString()))
 				if err != nil {
 					return fmt.Errorf("failed to unmarshal traces: %w", err)
 				}
@@ -225,6 +242,22 @@ func getEventTypeFromAttributes(attrs pcommon.Map) (EventType, error) {
 		return EventTypeStop, nil
 	default:
 		return EventTypeUnknown, fmt.Errorf("unknown event type: %q", t)
+	}
+}
+
+func getUnmrashaler(attrs pcommon.Map) (ptrace.Unmarshaler, bool) {
+	ty, ok := attrs.Get("partial.body.type")
+	if !ok {
+		return &tracesProtoUnmarshaler, true
+	}
+
+	switch ty.AsString() {
+	case "proto":
+		return &tracesProtoUnmarshaler, true
+	case "json":
+		return &tracesJSONUnmarshaler, true
+	default:
+		return nil, false
 	}
 }
 
