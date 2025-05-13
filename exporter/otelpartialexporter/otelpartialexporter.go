@@ -33,7 +33,7 @@ type base64ProtoUnmarshaler struct{}
 func (*base64ProtoUnmarshaler) UnmarshalTraces(buf []byte) (ptrace.Traces, error) {
 	rawTrace, err := base64.StdEncoding.DecodeString(string(buf))
 	if err != nil {
-		return ptrace.Traces{}, fmt.Errorf("failed to base64 decode: %v", err)
+		return ptrace.Traces{}, fmt.Errorf("failed to base64 decode: %w", err)
 	}
 
 	var u ptrace.ProtoUnmarshaler
