@@ -254,7 +254,7 @@ func getUnmrashaler(attrs pcommon.Map) (ptrace.Unmarshaler, bool) {
 	switch ty.AsString() {
 	case "proto":
 		return &tracesProtoUnmarshaler, true
-	case "json":
+	case "json/v1":
 		return &tracesJSONUnmarshaler, true
 	default:
 		return nil, false
