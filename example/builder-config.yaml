@@ -11,8 +11,9 @@ exporters:
   - gomod: github.com/G-Research/otel-partial-collector/exporter/otelpartialexporter v0.4.0
 
 processors:
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/groupbytraceprocessor v0.124.1
   - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.124.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/groupbyattrsprocessor v0.124.1
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/groupbytraceprocessor v0.124.1
 
 receivers:
   - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.124.0
