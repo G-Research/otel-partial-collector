@@ -71,8 +71,9 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 	heartbeatTraces := make(map[postgres.PartialTraceKey]*postgres.PartialTrace)
 	stopTraces := make(map[postgres.PartialTraceKey]any)
 
+	// Go through all the received logs to prepare them for the database transaction.
+	// Any issue with a given log at this stage will be permanent and the log should thus be skipped.
 	now := time.Now().UTC()
-	var errs []error
 	resourceLogs := logs.ResourceLogs()
 	for i := range resourceLogs.Len() {
 		resourceLog := resourceLogs.At(i)
@@ -98,7 +99,8 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 
 				traces, err := unmarshaler.UnmarshalTraces([]byte(logRecord.Body().AsString()))
 				if err != nil {
-					return fmt.Errorf("failed to unmarshal traces: %w", err)
+					e.logger.Warn("Failed to unmarshal traces", zap.Error(err))
+					continue
 				}
 
 				switch eventType {
@@ -116,7 +118,7 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 
 						b, err := tracesProtoMarshaler.MarshalTraces(t)
 						if err != nil {
-							errs = append(errs, fmt.Errorf("failed to marshal trace %v: %w", t, err))
+							e.logger.Warn("Failed to marshal trace", zap.Any("trace", t), zap.Error(err))
 							continue
 						}
 
@@ -149,16 +151,13 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 		}
 	}
 
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-
 	// If a given span has sent both a heartbeat and a stop event in the same
 	// batch, we do not need to insert it at all.
 	for k := range stopTraces {
 		delete(heartbeatTraces, k)
 	}
 
+	// If the DB transaction fails, we return an error and the pipeline will retry.
 	if err := e.db.Transact(
 		ctx,
 		pgx.TxOptions{
