@@ -202,6 +202,8 @@ func newPartialExporter(ctx context.Context, settings exporter.Settings, baseCfg
 		baseCfg,
 		ex.consumeLogs,
 		exporterhelper.WithCapabilities(consumer.Capabilities{MutatesData: true}),
+		exporterhelper.WithRetry(cfg.RetryConfig),
+		exporterhelper.WithQueue(cfg.QueueConfig),
 	)
 }
 
