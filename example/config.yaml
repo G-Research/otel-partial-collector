@@ -18,12 +18,14 @@ exporters:
     retry_on_failure:
       initial_interval: 5s
     sending_queue:
+      queue_size: 1000
       batch:
         flush_timeout: 1s
         min_size: 50
         max_size: 100
 
 processors:
+  batch:
   groupbyattrs:
   groupbytrace:
 
