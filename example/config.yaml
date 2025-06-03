@@ -8,6 +8,7 @@ receivers:
   otelpartialreceiver:
     postgres: "postgres://postgres:test@127.0.0.1:40444/otelpartialcollector?sslmode=disable"
     gc_interval: "5s"
+    batch_max_size: 100
 
 exporters:
   debug:
@@ -17,12 +18,14 @@ exporters:
     retry_on_failure:
       initial_interval: 5s
     sending_queue:
+      queue_size: 1000
       batch:
         flush_timeout: 1s
         min_size: 50
         max_size: 100
 
 processors:
+  batch:
   groupbyattrs:
   groupbytrace:
 

@@ -3,6 +3,7 @@ package otelpartialreceiver
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,8 +18,9 @@ func TestLoadConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	want := &Config{
-		Postgres:   "postgres://postgres:test@127.0.0.1:40444/otelpartialcollector?sslmode=disable",
-		GCInterval: "10s",
+		Postgres:     "postgres://postgres:test@127.0.0.1:40444/otelpartialcollector?sslmode=disable",
+		GCInterval:   10 * time.Second,
+		BatchMaxSize: 100,
 	}
 
 	got := createDefaultConfig().(*Config)

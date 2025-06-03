@@ -1,26 +1,36 @@
 package otelpartialreceiver
 
 import (
-	"fmt"
+	"errors"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
 )
 
 type Config struct {
-	Postgres   string `mapstructure:"postgres"`
-	GCInterval string `mapstructure:"gc_interval"`
+	// Postgres is URL used to connect to the postgres instance.
+	Postgres string `mapstructure:"postgres"`
+
+	// GCInterval is the time to wait between GC runs.
+	GCInterval time.Duration `mapstructure:"gc_interval"`
+
+	// BatchMaxSize is the maximum amount of partial traces to GC in one go.
+	// If set to 0, no limit is applied.
+	BatchMaxSize int64 `mapstructure:"batch_max_size"`
 }
 
 func (c *Config) Validate() error {
-	if _, err := time.ParseDuration(c.GCInterval); err != nil {
-		return fmt.Errorf("failed to parse interval duration: %w", err)
+	if c.GCInterval < 0 {
+		return errors.New("'gc_interval' must be non-negative")
+	}
+	if c.BatchMaxSize < 0 {
+		return errors.New("'batch_max_size' must be non-negative")
 	}
 	return nil
 }
 
 func createDefaultConfig() component.Config {
 	return &Config{
-		GCInterval: "5s",
+		GCInterval: 5 * time.Second,
 	}
 }
