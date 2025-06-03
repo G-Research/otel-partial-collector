@@ -103,12 +103,16 @@ WHERE (trace_id, span_id) IN (
 	return nil
 }
 
-func (db *DB) ListExpiredTraces(ctx context.Context, timestamp time.Time) ([]*PartialTrace, error) {
+func (db *DB) ListExpiredTraces(ctx context.Context, timestamp time.Time, limit int64) ([]*PartialTrace, error) {
 	q := `
 SELECT trace_id, span_id, trace FROM partial_traces
 WHERE expires_at < $1
 FOR UPDATE SKIP LOCKED
-	`
+`
+
+	if limit > 0 {
+		q += fmt.Sprintf("LIMIT %d\n", limit)
+	}
 
 	rows, err := db.Query(ctx, q, timestamp)
 	if err != nil {

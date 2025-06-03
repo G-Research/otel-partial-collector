@@ -2,7 +2,6 @@ package otelpartialreceiver
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/rand/v2"
 	"time"
@@ -23,10 +22,11 @@ var typeStr = component.MustNewType("otelpartialreceiver")
 var tracesProtoUnmarshaler ptrace.ProtoUnmarshaler
 
 type otelPartialReceiver struct {
-	consumer   consumer.Traces
-	db         *postgres.DB
-	gcInterval time.Duration
-	host       component.Host
+	consumer     consumer.Traces
+	db           *postgres.DB
+	gcInterval   time.Duration
+	batchMaxSize int64
+	host         component.Host
 
 	logger *zap.Logger
 
@@ -41,16 +41,12 @@ func newPartialReceiver(ctx context.Context, params receiver.Settings, baseCfg c
 		return nil, fmt.Errorf("failed to create new db connection: %w", err)
 	}
 
-	d, err := time.ParseDuration(cfg.GCInterval)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse duration interval: %w", err)
-	}
-
 	r := &otelPartialReceiver{
-		db:         db,
-		logger:     params.Logger,
-		gcInterval: d,
-		consumer:   consumer,
+		db:           db,
+		logger:       params.Logger,
+		gcInterval:   cfg.GCInterval,
+		batchMaxSize: cfg.BatchMaxSize,
+		consumer:     consumer,
 	}
 
 	return r, nil
@@ -81,7 +77,7 @@ func (r *otelPartialReceiver) Shutdown(context.Context) error {
 
 func (r *otelPartialReceiver) loop(ctx context.Context) {
 	for {
-		jitter := time.Millisecond * time.Duration(rand.IntN(1000)-500) // [-500ms,499ms]
+		jitter := time.Duration(rand.Int64N(int64(r.gcInterval/10*2))) - (r.gcInterval / 10) // [-10%,+10%]
 		select {
 		case <-ctx.Done():
 			r.logger.Info("Stopping gc loop after shutdown")
@@ -96,50 +92,70 @@ func (r *otelPartialReceiver) loop(ctx context.Context) {
 }
 
 func (r *otelPartialReceiver) gc(ctx context.Context) error {
-	now := time.Now().UTC()
-	var errs []error
-	if err := r.db.Transact(
-		ctx,
-		pgx.TxOptions{
-			IsoLevel:       pgx.Serializable,
-			AccessMode:     pgx.ReadWrite,
-			DeferrableMode: pgx.NotDeferrable,
-		},
-		func(ctx context.Context, db *postgres.DB) error {
-			traces, err := db.ListExpiredTraces(ctx, now)
-			if err != nil {
-				return fmt.Errorf("failed to get expired traces: %w", err)
-			}
+	// Process expired traces in batch until none are left
+	done := false
+	for !done {
+		if err := r.db.Transact(
+			ctx,
+			pgx.TxOptions{
+				IsoLevel:       pgx.Serializable,
+				AccessMode:     pgx.ReadWrite,
+				DeferrableMode: pgx.NotDeferrable,
+			},
+			func(ctx context.Context, db *postgres.DB) error {
+				now := time.Now().UTC()
 
-			for _, pt := range traces {
-				trace, err := tracesProtoUnmarshaler.UnmarshalTraces(pt.Trace)
+				expiredTraces, err := db.ListExpiredTraces(ctx, now, r.batchMaxSize)
 				if err != nil {
-					errs = append(errs, fmt.Errorf("failed to unmarshal traces: %w", err))
-					continue
+					return fmt.Errorf("failed to get expired traces: %w", err)
 				}
 
-				span := trace.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
-				span.SetEndTimestamp(pcommon.NewTimestampFromTime(now))
-				attrs := span.Attributes()
-				attrs.PutBool("partial.gc", true)
-
-				if err := r.consumer.ConsumeTraces(ctx, trace); err != nil {
-					errs = append(errs, fmt.Errorf("failed to consume trace %v: %w", trace, err))
-					continue
+				// We can exit once no expired traces are left
+				if len(expiredTraces) == 0 {
+					done = true
+					return nil
 				}
 
-				if err := db.RemoveTrace(ctx, pt.TraceID, pt.SpanID); err != nil {
-					errs = append(errs, fmt.Errorf("failed to rmeove trace: %w", err))
-					continue
+				toSend := ptrace.NewTraces()
+				toDelete := make([]postgres.PartialTraceKey, len(expiredTraces))
+
+				for i, pt := range expiredTraces {
+					// Any expired trace will need to be deleted, even if unmarshalling failed
+					toDelete[i] = postgres.PartialTraceKey{
+						TraceID: pt.TraceID,
+						SpanID:  pt.SpanID,
+					}
+
+					trace, err := tracesProtoUnmarshaler.UnmarshalTraces(pt.Trace)
+					if err != nil {
+						r.logger.Warn("Failed to unmarshal trace", zap.Error(err))
+						continue
+					}
+
+					span := trace.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
+					span.SetEndTimestamp(pcommon.NewTimestampFromTime(now))
+					attrs := span.Attributes()
+					attrs.PutBool("partial.gc", true)
+
+					trace.ResourceSpans().MoveAndAppendTo(toSend.ResourceSpans())
 				}
-			}
-			return nil
-		},
-	); err != nil {
-		return fmt.Errorf("transaction errors %w: %w", errors.Join(errs...), err)
+
+				if err := r.consumer.ConsumeTraces(ctx, toSend); err != nil {
+					return fmt.Errorf("failed to consume traces %v: %w", toSend, err)
+				}
+
+				if err := db.RemoveTraces(ctx, toDelete); err != nil {
+					return fmt.Errorf("failed to remove traces: %w", err)
+				}
+
+				return nil
+			},
+		); err != nil {
+			return fmt.Errorf("transaction error: %w", err)
+		}
 	}
 
-	return errors.Join(errs...)
+	return nil
 }
 
 func NewFactory() receiver.Factory {
