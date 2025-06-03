@@ -14,18 +14,24 @@ exporters:
   otelpartialexporter:
     postgres: "postgres://postgres:test@127.0.0.1:40444/otelpartialcollector?sslmode=disable"
     expiry_factor: 3
+    retry_on_failure:
+      initial_interval: 5s
+    sending_queue:
+      batch:
+        flush_timeout: 1s
+        min_size: 50
+        max_size: 100
 
 processors:
-  batch:
+  groupbyattrs:
   groupbytrace:
 
 service:
   pipelines:
     logs:
       receivers: [otlp]
-      processors: [batch]
       exporters: [otelpartialexporter]
     traces:
       receivers: [otelpartialreceiver]
-      processors: [groupbytrace]
+      processors: [groupbytrace, groupbyattrs, batch]
       exporters: [debug]

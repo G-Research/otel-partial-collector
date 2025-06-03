@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
 	"github.com/G-Research/otel-partial-collector/internal/postgres"
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
@@ -64,8 +67,13 @@ func (e *otelPartialExporter) Shutdown(context.Context) error {
 }
 
 func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) error {
+	// These structures let us deduplicate events for the same span in a given batch.
+	heartbeatTraces := make(map[postgres.PartialTraceKey]*postgres.PartialTrace)
+	stopTraces := make(map[postgres.PartialTraceKey]any)
+
+	// Go through all the received logs to prepare them for the database transaction.
+	// Any issue with a given log at this stage will be permanent and the log should thus be skipped.
 	now := time.Now().UTC()
-	var errs []error
 	resourceLogs := logs.ResourceLogs()
 	for i := range resourceLogs.Len() {
 		resourceLog := resourceLogs.At(i)
@@ -83,7 +91,7 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 					continue
 				}
 
-				unmarshaler, ok := getUnmrashaler(logAttrs)
+				unmarshaler, ok := getUnmarshaler(logAttrs)
 				if !ok {
 					e.logger.Warn("Failed to resolve unmarshaler type")
 					continue
@@ -91,7 +99,8 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 
 				traces, err := unmarshaler.UnmarshalTraces([]byte(logRecord.Body().AsString()))
 				if err != nil {
-					return fmt.Errorf("failed to unmarshal traces: %w", err)
+					e.logger.Warn("Failed to unmarshal traces", zap.Error(err))
+					continue
 				}
 
 				switch eventType {
@@ -109,31 +118,29 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 
 						b, err := tracesProtoMarshaler.MarshalTraces(t)
 						if err != nil {
-							errs = append(errs, fmt.Errorf("failed to marshal trace %v: %w", t, err))
+							e.logger.Warn("Failed to marshal trace", zap.Any("trace", t), zap.Error(err))
 							continue
 						}
 
-						if err := e.db.PutTrace(
-							ctx,
-							&postgres.PartialTrace{
-								TraceID:   span.TraceID().String(),
-								SpanID:    span.SpanID().String(),
-								Trace:     b,
-								Timestamp: now,
-								ExpiresAt: now.Add(interval * time.Duration(e.expiryFactor)),
-							},
-						); err != nil {
-							errs = append(errs, fmt.Errorf("failed to put trace: %w", err))
-							continue
+						key := postgres.PartialTraceKey{
+							TraceID: span.TraceID().String(),
+							SpanID:  span.SpanID().String(),
+						}
+						heartbeatTraces[key] = &postgres.PartialTrace{
+							PartialTraceKey: key,
+							Trace:           b,
+							Timestamp:       now,
+							ExpiresAt:       now.Add(interval * time.Duration(e.expiryFactor)),
 						}
 					}
+
 				case EventTypeStop:
 					for _, t := range flattenTraces(traces) {
 						span := t.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
-						if err := e.db.RemoveTrace(ctx, span.TraceID().String(), span.SpanID().String()); err != nil {
-							errs = append(errs, fmt.Errorf("failed to remove trace: %w", err))
-							continue
-						}
+						stopTraces[postgres.PartialTraceKey{
+							TraceID: span.TraceID().String(),
+							SpanID:  span.SpanID().String(),
+						}] = nil
 					}
 
 				default:
@@ -144,7 +151,36 @@ func (e *otelPartialExporter) consumeLogs(ctx context.Context, logs plog.Logs) e
 		}
 	}
 
-	return errors.Join(errs...)
+	// If a given span has sent both a heartbeat and a stop event in the same
+	// batch, we do not need to insert it at all.
+	for k := range stopTraces {
+		delete(heartbeatTraces, k)
+	}
+
+	// If the DB transaction fails, we return an error and the pipeline will retry.
+	if err := e.db.Transact(
+		ctx,
+		pgx.TxOptions{
+			IsoLevel:       pgx.Serializable,
+			AccessMode:     pgx.ReadWrite,
+			DeferrableMode: pgx.NotDeferrable,
+		},
+		func(ctx context.Context, db *postgres.DB) error {
+			if err := db.PutTraces(ctx, slices.Collect(maps.Values(heartbeatTraces))); err != nil {
+				return fmt.Errorf("failed to put traces: %w", err)
+			}
+
+			if err := db.RemoveTraces(ctx, slices.Collect(maps.Keys(stopTraces))); err != nil {
+				return fmt.Errorf("failed to delete traces: %w", err)
+			}
+
+			return nil
+		},
+	); err != nil {
+		return fmt.Errorf("transaction error: %w", err)
+	}
+
+	return nil
 }
 
 func newPartialExporter(ctx context.Context, settings exporter.Settings, baseCfg component.Config) (exporter.Logs, error) {
@@ -166,6 +202,8 @@ func newPartialExporter(ctx context.Context, settings exporter.Settings, baseCfg
 		baseCfg,
 		ex.consumeLogs,
 		exporterhelper.WithCapabilities(consumer.Capabilities{MutatesData: true}),
+		exporterhelper.WithRetry(cfg.RetryConfig),
+		exporterhelper.WithQueue(cfg.QueueConfig),
 	)
 }
 
@@ -245,7 +283,7 @@ func getEventTypeFromAttributes(attrs pcommon.Map) (EventType, error) {
 	}
 }
 
-func getUnmrashaler(attrs pcommon.Map) (ptrace.Unmarshaler, bool) {
+func getUnmarshaler(attrs pcommon.Map) (ptrace.Unmarshaler, bool) {
 	ty, ok := attrs.Get("partial.body.type")
 	if !ok {
 		return &tracesProtoUnmarshaler, true

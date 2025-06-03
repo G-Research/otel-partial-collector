@@ -179,9 +179,11 @@ func generatePartialTrace(t *testing.T) *postgres.PartialTrace {
 	require.NoError(t, err)
 
 	return &postgres.PartialTrace{
-		TraceID: traceID.String(),
-		SpanID:  spanID.String(),
-		Trace:   b,
+		PartialTraceKey: postgres.PartialTraceKey{
+			TraceID: traceID.String(),
+			SpanID:  spanID.String(),
+		},
+		Trace: b,
 	}
 }
 
