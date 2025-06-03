@@ -24,6 +24,7 @@ func (c *Config) Validate() error {
 		return errors.New("'gc_interval' must be non-negative")
 	}
 	if c.BatchMaxSize < 0 {
+		return errors.New("'batch_max_size' must be non-negative")
 	}
 	return nil
 }
